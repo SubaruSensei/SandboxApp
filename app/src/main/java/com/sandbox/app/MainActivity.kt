@@ -2,6 +2,7 @@ package com.sandbox.app
 
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.res.AssetManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
@@ -141,23 +142,42 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ৩. অ্যাপ চালু করা (Extract .so and run)
+    private fun copyAssetFolder(assetManager: AssetManager, source: String, destination: String) {
+        try {
+            val files = assetManager.list(source)
+            if (files == null || files.isEmpty()) {
+                val destFile = File(destination)
+                destFile.parentFile?.mkdirs()
+                assetManager.open(source).use { input ->
+                    FileOutputStream(destFile).use { output -> input.copyTo(output) }
+                }
+            } else {
+                val destDir = File(destination)
+                destDir.mkdirs()
+                for (file in files) {
+                    val src = "$source/$file"
+                    val dest = "$destination/$file"
+                    copyAssetFolder(assetManager, src, dest)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     private fun runSandboxApp(app: SandboxApp) {
         Thread {
             try {
                 val apkPath = File(filesDir, "apps/${app.packageName}/base.apk").absolutePath
                 val extractDir = File(filesDir, "extracted/${app.packageName}").apply { mkdirs() }
                 
-                // APK থেকে .so ফাইল বের করা
                 val zip = ZipFile(apkPath)
                 var mainLib: String? = null
                 for (entry in zip.entries()) {
                     if (entry.name.startsWith("lib/armeabi-v7a/") && entry.name.endsWith(".so")) {
                         val targetFile = File(extractDir, File(entry.name).name)
                         zip.getInputStream(entry).use { input ->
-                            FileOutputStream(targetFile).use { output ->
-                                input.copyTo(output)
-                            }
+                            FileOutputStream(targetFile).use { output -> input.copyTo(output) }
                         }
                         if (mainLib == null || targetFile.name.contains("minecraft")) {
                             mainLib = targetFile.absolutePath
@@ -171,19 +191,9 @@ class MainActivity : AppCompatActivity() {
                     return@Thread
                 }
 
-                // runtime32 অ্যাসেট থেকে ফোনে এক্সট্রাক্ট করা
                 val runtimeDir = File(filesDir, "runtime32").apply { mkdirs() }
-                val assetList = assets.list("runtime32") ?: emptyArray()
-                for (asset in assetList) {
-                    val target = File(runtimeDir, asset)
-                    if (!target.exists()) {
-                        assets.open("runtime32/$asset").use { input ->
-                            FileOutputStream(target).use { output -> input.copyTo(output) }
-                        }
-                    }
-                }
+                copyAssetFolder(assets, "runtime32", runtimeDir.absolutePath)
 
-                // hello32 ইঞ্জিন প্রস্তুত করা
                 val binFile = File(filesDir, "hello32")
                 if (!binFile.exists()) {
                     assets.open("hello32").use { input -> FileOutputStream(binFile).use { output -> input.copyTo(output) } }
@@ -191,14 +201,25 @@ class MainActivity : AppCompatActivity() {
                 binFile.setExecutable(true)
 
                 val writableDataDir = File(filesDir, "app_data").apply { mkdirs() }
+                
                 val cmd = arrayOf("/system/bin/linker", binFile.absolutePath, runtimeDir.absolutePath, mainLib, writableDataDir.absolutePath)
                 val pb = ProcessBuilder(*cmd)
                 pb.environment().remove("LD_PRELOAD")
-                pb.environment()["LD_LIBRARY_PATH"] = runtimeDir.absolutePath + ":" + extractDir.absolutePath
+                pb.environment()["LD_LIBRARY_PATH"] = "$runtimeDir:${extractDir.absolutePath}:/system/lib:/vendor/lib"
                 pb.redirectErrorStream(true)
 
                 val process = pb.start()
-                val output = process.inputStream.bufferedReader().readText()
+                
+                // Deadlock এড়াতে এবং কম্পাইলার এরর এড়াতে স্ট্যান্ডার্ড লুপ
+                val reader = process.inputStream.bufferedReader()
+                val outputBuilder = StringBuilder()
+                var line: String? = reader.readLine()
+                while (line != null) {
+                    outputBuilder.append(line).append("\n")
+                    line = reader.readLine()
+                }
+                
+                val output = outputBuilder.toString()
                 val exitCode = process.waitFor()
 
                 runOnUiThread {
