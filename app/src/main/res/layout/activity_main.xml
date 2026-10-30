@@ -2,6 +2,17 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
     android:orientation="vertical" android:padding="16dp">
-    <Button android:id="@+id/btnRun" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Run 32-bit Native Code" />
-    <TextView android:id="@+id/tvResult" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="16dp" android:textSize="14sp" />
+    
+    <EditText android:id="@+id/etInput"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:hint="Type something here..." 
+        android:text="hello sandbox" />
+        
+    <Button android:id="@+id/btnRun"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" android:text="Send to 32-bit Engine" />
+        
+    <TextView android:id="@+id/tvResult"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:paddingTop="16dp" android:textSize="14sp" android:fontFamily="monospace" />
 </LinearLayout>

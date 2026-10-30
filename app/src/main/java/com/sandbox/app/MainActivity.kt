@@ -2,6 +2,7 @@ package com.sandbox.app
 
 import android.os.Bundle
 import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
@@ -12,24 +13,26 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val etInput = findViewById<EditText>(R.id.etInput)
         val btnRun = findViewById<Button>(R.id.btnRun)
         val tvResult = findViewById<TextView>(R.id.tvResult)
 
         btnRun.setOnClickListener {
-            tvResult.text = "Running 32-bit binary...\n"
+            val userInput = etInput.text.toString()
+            tvResult.text = "Sending to 32-bit sandbox...\n"
+            
             Thread {
                 try {
                     val binFile = File(filesDir, "hello32")
                     if (!binFile.exists()) {
                         assets.open("hello32").use { input ->
-                            FileOutputStream(binFile).use { output ->
-                                input.copyTo(output)
-                            }
+                            FileOutputStream(binFile).use { output -> input.copyTo(output) }
                         }
                     }
                     binFile.setExecutable(true)
 
-                    val cmd = arrayOf("/system/bin/linker", binFile.absolutePath)
+                    // Kotlin -> 32-bit (আর্গুমেন্ট হিসেবে ইনপুট পাঠানো হচ্ছে)
+                    val cmd = arrayOf("/system/bin/linker", binFile.absolutePath, userInput)
                     val pb = ProcessBuilder(*cmd)
                     pb.environment().remove("LD_PRELOAD")
                     pb.redirectErrorStream(true)
