@@ -17,6 +17,7 @@ class AppAdapter(
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val imgIcon: ImageView = view.findViewById(R.id.imgIcon)
         val tvAppName: TextView = view.findViewById(R.id.tvAppName)
+        val tvVersion: TextView = view.findViewById(R.id.tvVersion)
         val tvInstallDate: TextView = view.findViewById(R.id.tvInstallDate)
     }
 
@@ -28,7 +29,16 @@ class AppAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val app = appList[position]
         holder.tvAppName.text = app.name
-        holder.tvInstallDate.text = "Installed: ${app.installDate}"
+        
+        if (app.isInstalled) {
+            holder.tvVersion.text = "✅ Installed (v${app.versionName})"
+            holder.tvVersion.setTextColor(android.graphics.Color.GREEN)
+        } else {
+            holder.tvVersion.text = "⬇️ Tap to Install (v${app.versionName})"
+            holder.tvVersion.setTextColor(android.graphics.Color.parseColor("#FFA500")) // Orange
+        }
+        
+        holder.tvInstallDate.text = "File added: ${app.installDate}"
 
         val iconFile = File(app.iconPath)
         if (iconFile.exists()) {
