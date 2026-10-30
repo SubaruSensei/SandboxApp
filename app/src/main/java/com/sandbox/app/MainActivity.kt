@@ -159,7 +159,6 @@ class MainActivity : AppCompatActivity() {
                                 input.copyTo(output)
                             }
                         }
-                        // সাধারণত প্রথম .so ফাইলটাই মেইন লাইব্রেরি হয়
                         if (mainLib == null || targetFile.name.contains("minecraft")) {
                             mainLib = targetFile.absolutePath
                         }
@@ -172,17 +171,29 @@ class MainActivity : AppCompatActivity() {
                     return@Thread
                 }
 
-                // hello32 ইঞ্জিন দিয়ে .so লোড করা
+                // runtime32 অ্যাসেট থেকে ফোনে এক্সট্রাক্ট করা
+                val runtimeDir = File(filesDir, "runtime32").apply { mkdirs() }
+                val assets = assets.list("runtime32") ?: emptyArray()
+                for (asset in assets) {
+                    val target = File(runtimeDir, asset)
+                    if (!target.exists()) {
+                        assets.open("runtime32/$asset").use { input ->
+                            FileOutputStream(target).use { output -> input.copyTo(output) }
+                        }
+                    }
+                }
+
+                // hello32 ইঞ্জিন প্রস্তুত করা
                 val binFile = File(filesDir, "hello32")
                 if (!binFile.exists()) {
                     assets.open("hello32").use { input -> FileOutputStream(binFile).use { output -> input.copyTo(output) } }
                 }
                 binFile.setExecutable(true)
 
-                val cmd = arrayOf("/system/bin/linker", binFile.absolutePath, mainLib)
+                val cmd = arrayOf("/system/bin/linker", binFile.absolutePath, runtimeDir.absolutePath, mainLib)
                 val pb = ProcessBuilder(*cmd)
                 pb.environment().remove("LD_PRELOAD")
-                pb.environment()["LD_LIBRARY_PATH"] = extractDir.absolutePath // লাইব্রেরি পাথ সেট করা
+                pb.environment()["LD_LIBRARY_PATH"] = runtimeDir.absolutePath + ":" + extractDir.absolutePath
                 pb.redirectErrorStream(true)
 
                 val process = pb.start()
