@@ -190,7 +190,8 @@ class MainActivity : AppCompatActivity() {
                 }
                 binFile.setExecutable(true)
 
-                val cmd = arrayOf("/system/bin/linker", binFile.absolutePath, runtimeDir.absolutePath, mainLib)
+                val writableDataDir = File(filesDir, "app_data").apply { mkdirs() }
+                val cmd = arrayOf("/system/bin/linker", binFile.absolutePath, runtimeDir.absolutePath, mainLib, writableDataDir.absolutePath)
                 val pb = ProcessBuilder(*cmd)
                 pb.environment().remove("LD_PRELOAD")
                 pb.environment()["LD_LIBRARY_PATH"] = runtimeDir.absolutePath + ":" + extractDir.absolutePath
