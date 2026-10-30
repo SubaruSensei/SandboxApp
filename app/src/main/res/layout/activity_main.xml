@@ -8,25 +8,54 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:orientation="vertical">
 
-        <TextView
+        <!-- Top Bar -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="My Sandbox Apps"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:paddingBottom="16dp"/>
+            android:layout_height="?attr/actionBarSize"
+            android:orientation="horizontal"
+            android:background="?attr/colorPrimary"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="16dp">
 
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Sandbox 32"
+                android:textColor="@android:color/white"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/btnPlus"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_input_add"
+                app:tint="@android:color/white"
+                android:contentDescription="Load APK" />
+
+            <ImageButton
+                android:id="@+id/btnMenu"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_more"
+                app:tint="@android:color/white"
+                android:contentDescription="Menu" />
+        </LinearLayout>
+
+        <!-- Main Content -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerView"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-
+            android:layout_height="match_parent"
+            android:padding="16dp" />
     </LinearLayout>
 
+    <!-- Floating Action Button for Refresh -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabRefresh"
         android:layout_width="wrap_content"
@@ -35,5 +64,4 @@
         android:layout_margin="24dp"
         android:contentDescription="Refresh List"
         app:srcCompat="@android:drawable/ic_popup_sync" />
-
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

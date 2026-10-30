@@ -9,6 +9,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import android.widget.ImageButton
+import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -49,6 +51,40 @@ class MainActivity : AppCompatActivity() {
             }
         }
         recyclerView.adapter = adapter
+
+        // Top Bar Buttons
+        findViewById<ImageButton>(R.id.btnPlus).setOnClickListener {
+            if (checkPermission()) {
+                scanDirectories()
+                Toast.makeText(this, "Loaded APKs from Sandbox 32/apks", Toast.LENGTH_SHORT).show()
+            } else {
+                requestPermission()
+            }
+        }
+
+        findViewById<ImageButton>(R.id.btnMenu).setOnClickListener { view ->
+            val popup = PopupMenu(this, view)
+            popup.menu.add("Refresh List")
+            popup.menu.add("Open APKs Folder")
+            popup.menu.add("About Sandbox 32")
+            popup.setOnMenuItemClickListener { item ->
+                when (item.title) {
+                    "Refresh List" -> { if (checkPermission()) scanDirectories() }
+                    "Open APKs Folder" -> {
+                        Toast.makeText(this, "Path: ${apksDir.absolutePath}", Toast.LENGTH_LONG).show()
+                    }
+                    "About Sandbox 32" -> {
+                        AlertDialog.Builder(this)
+                            .setTitle("Sandbox 32")
+                            .setMessage("A custom 32-bit runtime sandbox for Android 14+.\n\nCreated with ❤️ by SubaruSensei.")
+                            .setPositiveButton("OK", null)
+                            .show()
+                    }
+                }
+                true
+            }
+            popup.show()
+        }
 
         findViewById<FloatingActionButton>(R.id.fabRefresh).setOnClickListener {
             if (checkPermission()) scanDirectories() else requestPermission()
@@ -210,7 +246,6 @@ class MainActivity : AppCompatActivity() {
 
                 val process = pb.start()
                 
-                // Deadlock এড়াতে এবং কম্পাইলার এরর এড়াতে স্ট্যান্ডার্ড লুপ
                 val reader = process.inputStream.bufferedReader()
                 val outputBuilder = StringBuilder()
                 var line: String? = reader.readLine()
