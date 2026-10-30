@@ -173,8 +173,8 @@ class MainActivity : AppCompatActivity() {
 
                 // runtime32 অ্যাসেট থেকে ফোনে এক্সট্রাক্ট করা
                 val runtimeDir = File(filesDir, "runtime32").apply { mkdirs() }
-                val assets = assets.list("runtime32") ?: emptyArray()
-                for (asset in assets) {
+                val assetList = assets.list("runtime32") ?: emptyArray()
+                for (asset in assetList) {
                     val target = File(runtimeDir, asset)
                     if (!target.exists()) {
                         assets.open("runtime32/$asset").use { input ->
