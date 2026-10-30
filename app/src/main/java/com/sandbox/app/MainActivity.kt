@@ -18,21 +18,29 @@ class MainActivity : AppCompatActivity() {
         val tvResult = findViewById<TextView>(R.id.tvResult)
 
         btnRun.setOnClickListener {
-            val userInput = etInput.text.toString()
-            tvResult.text = "Sending to 32-bit sandbox...\n"
+            tvResult.text = "Extracting and running 32-bit library...\n"
             
             Thread {
                 try {
+                    // বাইনারি এবং লাইব্রেরি ফাইল বের করা
                     val binFile = File(filesDir, "hello32")
+                    val libFile = File(filesDir, "libmath32.so")
+
                     if (!binFile.exists()) {
                         assets.open("hello32").use { input ->
                             FileOutputStream(binFile).use { output -> input.copyTo(output) }
                         }
                     }
+                    if (!libFile.exists()) {
+                        assets.open("libmath32.so").use { input ->
+                            FileOutputStream(libFile).use { output -> input.copyTo(output) }
+                        }
+                    }
                     binFile.setExecutable(true)
+                    libFile.setExecutable(true)
 
-                    // Kotlin -> 32-bit (আর্গুমেন্ট হিসেবে ইনপুট পাঠানো হচ্ছে)
-                    val cmd = arrayOf("/system/bin/linker", binFile.absolutePath, userInput)
+                    // লাইব্রেরির অ্যাবসোলিউট পাথ আর্গুমেন্ট হিসেবে পাঠানো হচ্ছে
+                    val cmd = arrayOf("/system/bin/linker", binFile.absolutePath, libFile.absolutePath)
                     val pb = ProcessBuilder(*cmd)
                     pb.environment().remove("LD_PRELOAD")
                     pb.redirectErrorStream(true)
