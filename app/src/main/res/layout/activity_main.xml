@@ -42,7 +42,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_menu_more"
+                android:src="@drawable/ic_menu_3dot"
                 app:tint="@android:color/white"
                 android:contentDescription="Menu" />
         </LinearLayout>
