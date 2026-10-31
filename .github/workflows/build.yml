@@ -14,24 +14,23 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y patchelf gcc-arm-linux-gnueabi
           
-          cat << 'CEOF' > fmt_stub.c
-          void dummy() __asm__("_ZN3fmt2v76detail7vformatENS0_17basic_string_viewIcEENS0_11format_argsE");
-          void dummy() {}
+          cat << 'CEOF' > stubs.c
+          void fmt_dummy() __asm__("_ZN3fmt2v76detail7vformatENS0_17basic_string_viewIcEENS0_11format_argsE");
+          void fmt_dummy() {}
+          
+          void mediastub_dummy() __asm__("_ZN7android9mediastub9MediaStubC1Ev");
+          void mediastub_dummy() {}
           CEOF
           
-          # ৩২-বিট ARM এর জন্য ডামি libfmt.so বানানো
-          arm-linux-gnueabi-gcc -shared -fPIC -nostdlib -o app/src/main/assets/runtime32/libfmt.so fmt_stub.c
+          arm-linux-gnueabi-gcc -shared -fPIC -nostdlib -o app/src/main/assets/runtime32/libfmt.so stubs.c
           
-          # libinput.so-তে এড করা
           patchelf --add-needed libfmt.so app/src/main/assets/runtime32/libinput.so
-          
-          # libstagefright থেকে dovi রিমুভ করা
+          patchelf --add-needed libfmt.so app/src/main/assets/runtime32/libstagefright.so
           patchelf --remove-needed libdovi_omx.so app/src/main/assets/runtime32/libstagefright.so
           
           echo "=== Check Patches ==="
           file app/src/main/assets/runtime32/libfmt.so
-          patchelf --print-needed app/src/main/assets/runtime32/libinput.so | grep fmt || echo "❌ fmt stub missing"
-          patchelf --print-needed app/src/main/assets/runtime32/libstagefright.so | grep dovi || echo "✅ dovi removed"
+          patchelf --print-needed app/src/main/assets/runtime32/libstagefright.so | grep fmt || echo "❌ fmt stub missing in stagefright"
           
       - run: chmod +x gradlew && ./gradlew :app:assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
