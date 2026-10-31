@@ -231,6 +231,7 @@ class MainActivity : AppCompatActivity() {
                 copyAssetFolder(assets, "runtime32", runtimeDir.absolutePath)
 
                 val binFile = File(filesDir, "hello32")
+                binFile.delete()
                 if (!binFile.exists()) {
                     assets.open("hello32").use { input -> FileOutputStream(binFile).use { output -> input.copyTo(output) } }
                 }
