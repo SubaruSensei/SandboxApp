@@ -22,8 +22,9 @@ jobs:
               path = f"app/src/main/assets/runtime32/{lib}"
               try:
                   out = subprocess.check_output(["readelf", "-sW", path], stderr=subprocess.DEVNULL).decode()
-                  for match in re.findall(r"UND\s+(_ZN7android9mediastub[^ ]+)", out):
-                      missing.add(match)
+                  # ফিক্স: \s+ ব্যবহার করা হয়েছে যাতে নিউলাইন বা স্পেসে থেমে যায়, এবং strip() করা হয়েছে
+                  for match in re.findall(r"UND\s+(_ZN7android9mediastub[^\s]+)", out):
+                      missing.add(match.strip())
               except Exception:
                   pass
           
