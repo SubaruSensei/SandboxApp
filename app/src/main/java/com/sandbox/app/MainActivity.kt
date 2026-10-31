@@ -232,6 +232,7 @@ class MainActivity : AppCompatActivity() {
 
                 val runtimeDir = File(filesDir, "runtime32").apply { mkdirs() }
                 copyAssetFolder(assets, "runtime32", runtimeDir.absolutePath)
+                assets.open("Launcher.dex").use { i -> FileOutputStream(File(extractDir, "Launcher.dex")).use { o -> i.copyTo(o) } }
 
                 val binFile = File(filesDir, "hello32")
                 binFile.delete()
