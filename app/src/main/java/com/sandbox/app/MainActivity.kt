@@ -246,6 +246,7 @@ class MainActivity : AppCompatActivity() {
                 val cmd = arrayOf(
                     "/system/bin/linker",
                     File(runtimeDir, "app_process32").absolutePath,
+                    "-Djava.class.path=" + File(extractDir, "Launcher.dex").absolutePath + ":" + File(extractDir, "com.mojang.minecraftpe/classes.dex").absolutePath,
                     "-Xbootclasspath:" + File(runtimeDir, "javalib/core-oj.jar").absolutePath + ":" +
                             File(runtimeDir, "javalib/core-libart.jar").absolutePath + ":" +
                             File(runtimeDir, "javalib/core-icu4j.jar").absolutePath,
