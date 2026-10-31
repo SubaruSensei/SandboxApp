@@ -67,13 +67,15 @@ class MainActivity : AppCompatActivity() {
             popup.menu.add("Refresh List")
             popup.menu.add("Open APKs Folder")
             popup.menu.add("About Sandbox 32")
+            popup.menu.add("Display Settings")
             popup.setOnMenuItemClickListener { item ->
                 when (item.title) {
                     "Refresh List" -> { if (checkPermission()) scanDirectories() }
                     "Open APKs Folder" -> {
                         Toast.makeText(this, "Path: ${apksDir.absolutePath}", Toast.LENGTH_LONG).show()
                     }
-                    "About Sandbox 32" -> {
+                    "Display Settings" -> { startActivity(android.content.Intent(this, SettingsActivity::class.java)) }
+                "About Sandbox 32" -> {
                         AlertDialog.Builder(this)
                             .setTitle("Sandbox 32")
                             .setMessage("A custom 32-bit runtime sandbox for Android 14+.\n\nCreated with ❤️ by SubaruSensei.")
