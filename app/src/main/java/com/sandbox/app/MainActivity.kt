@@ -255,10 +255,19 @@ class MainActivity : AppCompatActivity() {
                 val pb = ProcessBuilder(*cmd)
                 pb.environment()["ANDROID_ROOT"] = "/system"
                 pb.environment()["ANDROID_DATA"] = writableDataDir.absolutePath
-                pb.environment()["LD_LIBRARY_PATH"] = runtimeDir.absolutePath + ":" + File(extractDir, "com.mojang.minecraftpe").absolutePath
+                
+                // LD_LIBRARY_PATH সেট করা
+                val libPath = runtimeDir.absolutePath + ":" + File(extractDir, "com.mojang.minecraftpe").absolutePath
+                pb.environment()["LD_LIBRARY_PATH"] = libPath
+                
+                // LD_PRELOAD সেট করা
                 pb.environment()["LD_PRELOAD"] = File(runtimeDir, "libshim_abi.so").absolutePath
-                pb.environment()["CLASSPATH"] = File(assetsDir, "Launcher.dex").absolutePath + ":" + File(extractDir, "com.mojang.minecraftpe/classes.dex").absolutePath
-
+                
+                // CLASSPATH সেট করা (Launcher.dex এবং Minecraft classes.dex)
+                val launcherDex = File(extractDir, "Launcher.dex").absolutePath
+                val minecraftDex = File(extractDir, "com.mojang.minecraftpe/classes.dex").absolutePath
+                pb.environment()["CLASSPATH"] = "$launcherDex:$minecraftDex"
+                
                 val process = pb.redirectErrorStream(true).start()
                 
                 val reader = process.inputStream.bufferedReader()
