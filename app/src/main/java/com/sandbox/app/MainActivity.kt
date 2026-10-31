@@ -210,6 +210,7 @@ class MainActivity : AppCompatActivity() {
                 val zip = ZipFile(apkPath)
                 var mainLib: String? = null
                 for (entry in zip.entries()) {
+                    if (entry.name == "classes.dex") { zip.getInputStream(entry).use { i -> FileOutputStream(File(extractDir, "classes.dex")).use { o -> i.copyTo(o) } } }
                     if (entry.name.startsWith("lib/armeabi-v7a/") && entry.name.endsWith(".so")) {
                         val targetFile = File(extractDir, File(entry.name).name)
                         zip.getInputStream(entry).use { input ->
@@ -239,7 +240,7 @@ class MainActivity : AppCompatActivity() {
 
                 val writableDataDir = File(filesDir, "app_data").apply { mkdirs() }
                 
-                val cmd = arrayOf("/system/bin/linker", binFile.absolutePath, runtimeDir.absolutePath, mainLib, writableDataDir.absolutePath)
+                val cmd = arrayOf("/system/bin/linker", binFile.absolutePath, runtimeDir.absolutePath, mainLib, writableDataDir.absolutePath, File(extractDir, "classes.dex").absolutePath)
                 val pb = ProcessBuilder(*cmd)
                 pb.environment().remove("LD_PRELOAD")
                 pb.environment()["LD_LIBRARY_PATH"] = "$runtimeDir:${extractDir.absolutePath}:/system/lib:/vendor/lib"
