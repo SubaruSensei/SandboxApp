@@ -251,7 +251,7 @@ class MainActivity : AppCompatActivity() {
                     "-Xusejit:false",
                     "/system/bin",
                     "com.sandbox.app.MinecraftLauncher"
-                ).absolutePath)
+                )
                 val pb = ProcessBuilder(*cmd)
                 pb.environment()["ANDROID_ROOT"] = "/system"
                 pb.environment()["ANDROID_DATA"] = writableDataDir.absolutePath
