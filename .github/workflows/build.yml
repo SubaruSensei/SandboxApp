@@ -1,14 +1,30 @@
 name: build-apk
 on: [push, workflow_dispatch]
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '17' }
+        
       - uses: android-actions/setup-android@v3
         with: { packages: 'platform-tools platforms;android-34 build-tools;34.0.0' }
+        
+      - name: Install patchelf and Patch Libraries
+        run: |
+          sudo apt-get update && sudo apt-get install -y patchelf
+          
+          patchelf --replace-needed libinput.so liblog.so app/src/main/assets/runtime32/libandroid.so
+          patchelf --remove-needed libdovi_omx.so app/src/main/assets/runtime32/libstagefright.so
+          
+          echo "=== Check Patches ==="
+          patchelf --print-needed app/src/main/assets/runtime32/libandroid.so | grep input || echo "✅ libinput removed from libandroid"
+          patchelf --print-needed app/src/main/assets/runtime32/libstagefright.so | grep dovi || echo "✅ libdovi_omx removed from libstagefright"
+          
       - run: chmod +x gradlew && ./gradlew :app:assembleDebug --no-daemon
+      
       - uses: actions/upload-artifact@v4
         with: { name: sandbox-apk, path: app/build/outputs/apk/debug/*.apk }
