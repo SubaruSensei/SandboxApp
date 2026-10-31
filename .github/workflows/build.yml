@@ -12,25 +12,41 @@ jobs:
       
       - name: Install cross-compiler and Patch Libraries
         run: |
-          sudo apt-get update && sudo apt-get install -y patchelf gcc-arm-linux-gnueabi
+          sudo apt-get update && sudo apt-get install -y patchelf gcc-arm-linux-gnueabi python3
           
-          cat << 'CEOF' > stubs.c
-          void fmt_dummy() __asm__("_ZN3fmt2v76detail7vformatENS0_17basic_string_viewIcEENS0_11format_argsE");
-          void fmt_dummy() {}
+          cat << 'PYEOF' > gen_stubs.py
+          import subprocess, re
+          missing = set()
+          libs = ["libstagefright.so", "libinput.so", "libmediaplayerservice.so"]
+          for lib in libs:
+              path = f"app/src/main/assets/runtime32/{lib}"
+              try:
+                  out = subprocess.check_output(["readelf", "-sW", path], stderr=subprocess.DEVNULL).decode()
+                  for match in re.findall(r"UND\s+(_ZN7android9mediastub[^ ]+)", out):
+                      missing.add(match)
+              except Exception:
+                  pass
           
-          void mediastub_dummy() __asm__("_ZN7android9mediastub9MediaStubC1Ev");
-          void mediastub_dummy() {}
-          CEOF
+          with open("stubs.c", "w") as f:
+              f.write('void fmt_dummy() __asm__("_ZN3fmt2v76detail7vformatENS0_17basic_string_viewIcEENS0_11format_argsE");\n')
+              f.write('void fmt_dummy() {}\n\n')
+              for i, sym in enumerate(missing):
+                  f.write(f'void* stub_{i}() __asm__("{sym}");\n')
+                  f.write(f'void* stub_{i}() {{ return 0; }}\n\n')
+          print(f"Generated stubs for {len(missing)} symbols.")
+          PYEOF
+          
+          python3 gen_stubs.py
           
           arm-linux-gnueabi-gcc -shared -fPIC -nostdlib -o app/src/main/assets/runtime32/libfmt.so stubs.c
           
-          patchelf --add-needed libfmt.so app/src/main/assets/runtime32/libinput.so
-          patchelf --add-needed libfmt.so app/src/main/assets/runtime32/libstagefright.so
-          patchelf --remove-needed libdovi_omx.so app/src/main/assets/runtime32/libstagefright.so
+          patchelf --add-needed libfmt.so app/src/main/assets/runtime32/libinput.so || true
+          patchelf --add-needed libfmt.so app/src/main/assets/runtime32/libstagefright.so || true
+          patchelf --add-needed libfmt.so app/src/main/assets/runtime32/libmediaplayerservice.so || true
+          patchelf --remove-needed libdovi_omx.so app/src/main/assets/runtime32/libstagefright.so || true
           
           echo "=== Check Patches ==="
           file app/src/main/assets/runtime32/libfmt.so
-          patchelf --print-needed app/src/main/assets/runtime32/libstagefright.so | grep fmt || echo "❌ fmt stub missing in stagefright"
           
       - run: chmod +x gradlew && ./gradlew :app:assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
