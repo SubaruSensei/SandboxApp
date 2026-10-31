@@ -243,7 +243,7 @@ class MainActivity : AppCompatActivity() {
 
                 val writableDataDir = File(filesDir, "app_data").apply { mkdirs() }
                 
-                val cmd = arrayOf(
+                val cmdAppProcess = arrayOf(
                     "/system/bin/linker",
                     File(runtimeDir, "app_process32").absolutePath,
                     "-Djava.class.path=" + File(extractDir, "Launcher.dex").absolutePath + ":" + File(extractDir, "classes.dex").absolutePath,
@@ -256,6 +256,9 @@ class MainActivity : AppCompatActivity() {
                     "/system/bin",
                     "com.sandbox.app.MinecraftLauncher"
                 )
+                val useHello32 = File(filesDir, "use_hello32").exists()
+                val cmdHello32 = arrayOf("/system/bin/linker", binFile.absolutePath, runtimeDir.absolutePath, mainLib, writableDataDir.absolutePath, File(extractDir, "Launcher.dex").absolutePath + ":" + File(extractDir, "classes.dex").absolutePath)
+                val cmd = if (useHello32) cmdHello32 else cmdAppProcess
                 val pb = ProcessBuilder(*cmd)
                 pb.environment()["ANDROID_ROOT"] = "/system"
                 pb.environment()["ANDROID_DATA"] = writableDataDir.absolutePath
@@ -265,7 +268,7 @@ class MainActivity : AppCompatActivity() {
                 pb.environment()["LD_LIBRARY_PATH"] = libPath
                 
                 // LD_PRELOAD সেট করা
-                pb.environment()["LD_PRELOAD"] = File(runtimeDir, "libshim_abi.so").absolutePath
+                if (!useHello32) pb.environment()["LD_PRELOAD"] = File(runtimeDir, "libshim_abi.so").absolutePath
                 
                 // CLASSPATH সেট করা (Launcher.dex এবং Minecraft classes.dex)
                 val launcherDex = File(extractDir, "Launcher.dex").absolutePath
@@ -288,7 +291,7 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     AlertDialog.Builder(this)
                         .setTitle("Sandbox Output")
-                        .setMessage("Exit Code: $exitCode\n\n$output")
+                        .setMessage("Mode: ${if (useHello32) "hello32" else "app_process32"}\nExit Code: $exitCode\n\n$output")
                         .setPositiveButton("OK", null)
                         .show()
                 }
