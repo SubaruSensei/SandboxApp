@@ -240,13 +240,26 @@ class MainActivity : AppCompatActivity() {
 
                 val writableDataDir = File(filesDir, "app_data").apply { mkdirs() }
                 
-                val cmd = arrayOf("/system/bin/linker", binFile.absolutePath, runtimeDir.absolutePath, mainLib, writableDataDir.absolutePath, File(extractDir, "classes.dex").absolutePath)
+                val cmd = arrayOf(
+                    "/system/bin/linker",
+                    File(runtimeDir, "app_process32").absolutePath,
+                    "-Xbootclasspath:" + File(runtimeDir, "javalib/core-oj.jar").absolutePath + ":" +
+                            File(runtimeDir, "javalib/core-libart.jar").absolutePath + ":" +
+                            File(runtimeDir, "javalib/core-icu4j.jar").absolutePath,
+                    "-Xnoimage-dex2oat",
+                    "-Xint",
+                    "-Xusejit:false",
+                    "/system/bin",
+                    "com.sandbox.app.MinecraftLauncher"
+                ).absolutePath)
                 val pb = ProcessBuilder(*cmd)
-                pb.environment().remove("LD_PRELOAD")
-                pb.environment()["LD_LIBRARY_PATH"] = "$runtimeDir:${extractDir.absolutePath}:/system/lib:/vendor/lib"
-                pb.redirectErrorStream(true)
+                pb.environment()["ANDROID_ROOT"] = "/system"
+                pb.environment()["ANDROID_DATA"] = writableDataDir.absolutePath
+                pb.environment()["LD_LIBRARY_PATH"] = runtimeDir.absolutePath + ":" + File(extractDir, "com.mojang.minecraftpe").absolutePath
+                pb.environment()["LD_PRELOAD"] = File(runtimeDir, "libshim_abi.so").absolutePath
+                pb.environment()["CLASSPATH"] = File(assetsDir, "Launcher.dex").absolutePath + ":" + File(extractDir, "com.mojang.minecraftpe/classes.dex").absolutePath
 
-                val process = pb.start()
+                val process = pb.redirectErrorStream(true).start()
                 
                 val reader = process.inputStream.bufferedReader()
                 val outputBuilder = StringBuilder()
