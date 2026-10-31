@@ -246,10 +246,10 @@ class MainActivity : AppCompatActivity() {
                 val cmd = arrayOf(
                     "/system/bin/linker",
                     File(runtimeDir, "app_process32").absolutePath,
-                    "-Djava.class.path=" + File(extractDir, "Launcher.dex").absolutePath + ":" + File(extractDir, "com.mojang.minecraftpe/classes.dex").absolutePath,
+                    "-Djava.class.path=" + File(extractDir, "Launcher.dex").absolutePath + ":" + File(extractDir, "classes.dex").absolutePath,
                     "-Xbootclasspath:" + File(runtimeDir, "javalib/core-oj.jar").absolutePath + ":" +
                             File(runtimeDir, "javalib/core-libart.jar").absolutePath + ":" +
-                            File(runtimeDir, "javalib/core-icu4j.jar").absolutePath,
+                            File(runtimeDir, "javalib/core-icu4j.jar").absolutePath + ":" + File(runtimeDir, "framework/framework.jar").absolutePath,
                     "-Xnoimage-dex2oat",
                     "-Xint",
                     "-Xusejit:false",
@@ -261,7 +261,7 @@ class MainActivity : AppCompatActivity() {
                 pb.environment()["ANDROID_DATA"] = writableDataDir.absolutePath
                 
                 // LD_LIBRARY_PATH সেট করা
-                val libPath = runtimeDir.absolutePath + ":" + File(extractDir, "com.mojang.minecraftpe").absolutePath
+                val libPath = runtimeDir.absolutePath + ":" + extractDir.absolutePath
                 pb.environment()["LD_LIBRARY_PATH"] = libPath
                 
                 // LD_PRELOAD সেট করা
@@ -269,7 +269,7 @@ class MainActivity : AppCompatActivity() {
                 
                 // CLASSPATH সেট করা (Launcher.dex এবং Minecraft classes.dex)
                 val launcherDex = File(extractDir, "Launcher.dex").absolutePath
-                val minecraftDex = File(extractDir, "com.mojang.minecraftpe/classes.dex").absolutePath
+                val minecraftDex = File(extractDir, "classes.dex").absolutePath
                 pb.environment()["CLASSPATH"] = "$launcherDex:$minecraftDex"
                 
                 val process = pb.redirectErrorStream(true).start()
