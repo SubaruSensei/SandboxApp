@@ -68,12 +68,14 @@ class MainActivity : AppCompatActivity() {
             popup.menu.add("Open APKs Folder")
             popup.menu.add("About Sandbox 32")
             popup.menu.add("Display Settings")
+            popup.menu.add("Developer Settings")
             popup.setOnMenuItemClickListener { item ->
                 when (item.title) {
                     "Refresh List" -> { if (checkPermission()) scanDirectories() }
                     "Open APKs Folder" -> {
                         Toast.makeText(this, "Path: ${apksDir.absolutePath}", Toast.LENGTH_LONG).show()
                     }
+                    "Developer Settings" -> { startActivity(android.content.Intent(this, DevSettingsActivity::class.java)) }
                     "Display Settings" -> { startActivity(android.content.Intent(this, SettingsActivity::class.java)) }
                 "About Sandbox 32" -> {
                         AlertDialog.Builder(this)
@@ -203,100 +205,160 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun overlayCopy(src: File, dst: File, log: StringBuilder) {
+        if (!src.exists()) return
+        if (src.isDirectory) {
+            dst.mkdirs()
+            val kids = src.listFiles()
+            if (kids != null) for (k in kids) overlayCopy(k, File(dst, k.name), log)
+        } else {
+            dst.parentFile?.mkdirs()
+            src.copyTo(dst, true)
+            dst.setReadable(true, false)
+            dst.setExecutable(true, false)
+            log.append("[dev] overlay: ").append(src.absolutePath).append(" -> ").append(dst.name).append("\n")
+        }
+    }
+
     private fun runSandboxApp(app: SandboxApp) {
         Thread {
+            val out = StringBuilder()
+            var exitCode = -999
+            var mode = "?"
+            var cmdLine = ""
             try {
+                val cfg = DevConfig.load()
+                mode = cfg.mode
                 val apkPath = File(filesDir, "apps/${app.packageName}/base.apk").absolutePath
                 val extractDir = File(filesDir, "extracted/${app.packageName}").apply { mkdirs() }
-                
+
+                var mainLibPath: String? = null
                 val zip = ZipFile(apkPath)
-                var mainLib: String? = null
                 for (entry in zip.entries()) {
-                    if (entry.name == "classes.dex") { zip.getInputStream(entry).use { i -> FileOutputStream(File(extractDir, "classes.dex")).use { o -> i.copyTo(o) } } }
+                    if (entry.name == "classes.dex") {
+                        zip.getInputStream(entry).use { i -> FileOutputStream(File(extractDir, "classes.dex")).use { o -> i.copyTo(o) } }
+                    }
                     if (entry.name.startsWith("lib/armeabi-v7a/") && entry.name.endsWith(".so")) {
                         val targetFile = File(extractDir, File(entry.name).name)
-                        zip.getInputStream(entry).use { input ->
-                            FileOutputStream(targetFile).use { output -> input.copyTo(output) }
-                        }
-                        if (mainLib == null || targetFile.name.contains("minecraft")) {
-                            mainLib = targetFile.absolutePath
-                        }
+                        zip.getInputStream(entry).use { input -> FileOutputStream(targetFile).use { output -> input.copyTo(output) } }
+                        if (mainLibPath == null || targetFile.name.contains("minecraft")) mainLibPath = targetFile.absolutePath
                     }
                 }
                 zip.close()
-
-                if (mainLib == null) {
+                val gameLib: String = mainLibPath ?: run {
                     runOnUiThread { Toast.makeText(this, "No 32-bit .so found in APK", Toast.LENGTH_LONG).show() }
                     return@Thread
                 }
 
                 val runtimeDir = File(filesDir, "runtime32").apply { mkdirs() }
-                copyAssetFolder(assets, "runtime32", runtimeDir.absolutePath)
-                assets.open("Launcher.dex").use { i -> FileOutputStream(File(extractDir, "Launcher.dex")).use { o -> i.copyTo(o) } }
+                val stamp = File(filesDir, "runtime32.stamp")
+                val installTime = try { packageManager.getPackageInfo(packageName, 0).lastUpdateTime.toString() } catch (e: Exception) { "0" }
+                if (!cfg.skipRuntimeCopy || !stamp.exists() || stamp.readText() != installTime) {
+                    copyAssetFolder(assets, "runtime32", runtimeDir.absolutePath)
+                    stamp.writeText(installTime)
+                    out.append("[dev] runtime32 copied from assets\n")
+                } else {
+                    out.append("[dev] runtime32 copy skipped (unchanged)\n")
+                }
 
+                val launcherFile = File(extractDir, "Launcher.dex")
+                assets.open("Launcher.dex").use { i -> FileOutputStream(launcherFile).use { o -> i.copyTo(o) } }
                 val binFile = File(filesDir, "hello32")
                 binFile.delete()
-                if (!binFile.exists()) {
-                    assets.open("hello32").use { input -> FileOutputStream(binFile).use { output -> input.copyTo(output) } }
+                assets.open("hello32").use { i -> FileOutputStream(binFile).use { o -> i.copyTo(o) } }
+
+                if (cfg.useOverlay) {
+                    val ov = DevConfig.overlayDir()
+                    overlayCopy(File(ov, "hello32"), binFile, out)
+                    overlayCopy(File(ov, "Launcher.dex"), launcherFile, out)
+                    overlayCopy(File(ov, "runtime32"), runtimeDir, out)
                 }
                 binFile.setExecutable(true)
 
                 val writableDataDir = File(filesDir, "app_data").apply { mkdirs() }
-                
-                val cmdAppProcess = arrayOf(
-                    "/system/bin/linker",
-                    File(runtimeDir, "app_process32").absolutePath,
-                    "-Djava.class.path=" + File(extractDir, "Launcher.dex").absolutePath + ":" + File(extractDir, "classes.dex").absolutePath,
-                    "-Xbootclasspath:" + File(runtimeDir, "javalib/core-oj.jar").absolutePath + ":" +
-                            File(runtimeDir, "javalib/core-libart.jar").absolutePath + ":" +
-                            File(runtimeDir, "javalib/core-icu4j.jar").absolutePath + ":" + File(runtimeDir, "framework/framework.jar").absolutePath,
-                    "-Xnoimage-dex2oat",
-                    "-Xint",
-                    "-Xusejit:false",
-                    "/system/bin",
-                    "com.sandbox.app.MinecraftLauncher"
-                )
-                val useHello32 = File(filesDir, "use_hello32").exists()
-                val cmdHello32 = arrayOf("/system/bin/linker", binFile.absolutePath, runtimeDir.absolutePath, mainLib, writableDataDir.absolutePath, File(extractDir, "Launcher.dex").absolutePath + ":" + File(extractDir, "classes.dex").absolutePath)
-                val cmd = if (useHello32) cmdHello32 else cmdAppProcess
-                val pb = ProcessBuilder(*cmd)
+                File(writableDataDir, "launcher_log.txt").delete()
+                val dexCp = launcherFile.absolutePath + ":" + File(extractDir, "classes.dex").absolutePath
+
+                val cmd = ArrayList<String>()
+                cmd.add("/system/bin/linker")
+                if (cfg.mode == "hello32") {
+                    cmd.add(binFile.absolutePath)
+                    cmd.add(runtimeDir.absolutePath)
+                    cmd.add(gameLib)
+                    cmd.add(writableDataDir.absolutePath)
+                    cmd.add(dexCp)
+                    for (a in DevConfig.splitLines(cfg.helloExtraArgs)) cmd.add(a)
+                } else {
+                    cmd.add(File(runtimeDir, "app_process32").absolutePath)
+                    cmd.add("-Djava.class.path=$dexCp")
+                    val boot = ArrayList<String>()
+                    for (j in listOf("javalib/core-oj.jar", "javalib/core-libart.jar", "javalib/core-icu4j.jar")) {
+                        boot.add(File(runtimeDir, j).absolutePath)
+                    }
+                    for (j in cfg.extraBootJars.split(":", "\n").map { it.trim() }.filter { it.isNotEmpty() }) {
+                        boot.add(if (j.startsWith("/")) j else File(runtimeDir, j).absolutePath)
+                    }
+                    cmd.add("-Xbootclasspath:" + boot.joinToString(":"))
+                    for (a in DevConfig.splitLines(cfg.appProcessArgs)) cmd.add(a)
+                    cmd.add("/system/bin")
+                    cmd.add("com.sandbox.app.MinecraftLauncher")
+                }
+                cmdLine = cmd.joinToString(" ")
+
+                val pb = ProcessBuilder(cmd)
                 pb.environment()["ANDROID_ROOT"] = "/system"
                 pb.environment()["ANDROID_DATA"] = writableDataDir.absolutePath
-                
-                // LD_LIBRARY_PATH সেট করা
-                val libPath = runtimeDir.absolutePath + ":" + extractDir.absolutePath
-                pb.environment()["LD_LIBRARY_PATH"] = libPath
-                
-                // LD_PRELOAD সেট করা
-                if (!useHello32) pb.environment()["LD_PRELOAD"] = File(runtimeDir, "libshim_abi.so").absolutePath
-                
-                // CLASSPATH সেট করা (Launcher.dex এবং Minecraft classes.dex)
-                val launcherDex = File(extractDir, "Launcher.dex").absolutePath
-                val minecraftDex = File(extractDir, "classes.dex").absolutePath
-                pb.environment()["CLASSPATH"] = "$launcherDex:$minecraftDex"
-                
-                val process = pb.redirectErrorStream(true).start()
-                
-                val reader = process.inputStream.bufferedReader()
-                val outputBuilder = StringBuilder()
-                var line: String? = reader.readLine()
-                while (line != null) {
-                    outputBuilder.append(line).append("\n")
-                    line = reader.readLine()
+                pb.environment()["CLASSPATH"] = dexCp
+                if (cfg.mode == "hello32") {
+                    pb.environment()["LD_LIBRARY_PATH"] = extractDir.absolutePath
+                } else {
+                    pb.environment()["LD_LIBRARY_PATH"] = runtimeDir.absolutePath + ":" + extractDir.absolutePath
+                    if (cfg.useShim) pb.environment()["LD_PRELOAD"] = File(runtimeDir, "libshim_abi.so").absolutePath
                 }
-                
-                val output = outputBuilder.toString()
-                val exitCode = process.waitFor()
+                for (line in DevConfig.splitLines(cfg.extraEnv)) {
+                    val idx = line.indexOf('=')
+                    if (idx > 0) pb.environment()[line.substring(0, idx).trim()] = line.substring(idx + 1).trim()
+                }
 
-                runOnUiThread {
-                    AlertDialog.Builder(this)
-                        .setTitle("Sandbox Output")
-                        .setMessage("Mode: ${if (useHello32) "hello32" else "app_process32"}\nExit Code: $exitCode\n\n$output")
-                        .setPositiveButton("OK", null)
-                        .show()
+                val process = pb.redirectErrorStream(true).start()
+                val buf = StringBuffer()
+                val reader = Thread {
+                    try { process.inputStream.bufferedReader().forEachLine { buf.append(it).append("\n") } } catch (e: Exception) { }
                 }
+                reader.start()
+                val finished = process.waitFor(cfg.timeoutSec.toLong(), java.util.concurrent.TimeUnit.SECONDS)
+                if (!finished) {
+                    process.destroyForcibly()
+                    process.waitFor()
+                    buf.append("\n[dev] TIMEOUT after ").append(cfg.timeoutSec).append("s, process killed\n")
+                }
+                reader.join(2000)
+                exitCode = process.exitValue()
+                out.append(buf.toString())
+
+                val ll = File(writableDataDir, "launcher_log.txt")
+                if (ll.exists()) out.append("\n--- launcher_log.txt ---\n").append(ll.readText())
             } catch (e: Exception) {
-                runOnUiThread { Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show() }
+                out.append("\n[dev] EXCEPTION: ").append(e.toString()).append("\n")
+            }
+
+            val dialogText = "Mode: $mode\nExit Code: $exitCode\n\n$out"
+            try {
+                val f = DevConfig.lastOutputFile()
+                f.parentFile?.mkdirs()
+                f.writeText(dialogText + "\n--- cmd ---\n" + cmdLine + "\n")
+            } catch (e: Exception) { }
+            runOnUiThread {
+                AlertDialog.Builder(this)
+                    .setTitle("Sandbox Output")
+                    .setMessage(dialogText)
+                    .setPositiveButton("OK", null)
+                    .setNeutralButton("Copy") { _, _ ->
+                        val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        cm.setPrimaryClip(android.content.ClipData.newPlainText("sandbox", dialogText))
+                        Toast.makeText(this, "Copied", Toast.LENGTH_SHORT).show()
+                    }
+                    .show()
             }
         }.start()
     }
