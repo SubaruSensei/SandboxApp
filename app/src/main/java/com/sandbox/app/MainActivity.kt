@@ -366,7 +366,7 @@ class MainActivity : AppCompatActivity() {
                 val finished = process.waitFor(cfg.timeoutSec.toLong(), java.util.concurrent.TimeUnit.SECONDS)
                 if (!finished) {
                     process.destroyForcibly()
-                    process.waitFor()
+                    process.waitFor(2, java.util.concurrent.TimeUnit.SECONDS) // ২ সেকেন্ডের জন্য অপেক্ষা করবে, তারপরও না মরলে এগিয়ে যাবে
                     buf.append("\n[dev] TIMEOUT after ").append(cfg.timeoutSec).append("s, process killed\n")
                 }
                 reader.join(2000)
