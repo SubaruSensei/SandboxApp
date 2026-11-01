@@ -310,7 +310,7 @@ class MainActivity : AppCompatActivity() {
                 pb.environment()["ANDROID_DATA"] = writableDataDir.absolutePath
                 pb.environment()["CLASSPATH"] = dexCp
                 if (cfg.mode == "hello32") {
-                    pb.environment()["LD_LIBRARY_PATH"] = extractDir.absolutePath
+                    pb.environment()["LD_LIBRARY_PATH"] = runtimeDir.absolutePath + ":" + extractDir.absolutePath
                 } else {
                     pb.environment()["LD_LIBRARY_PATH"] = runtimeDir.absolutePath + ":" + extractDir.absolutePath
                     if (cfg.useShim) pb.environment()["LD_PRELOAD"] = File(runtimeDir, "libshim_abi.so").absolutePath

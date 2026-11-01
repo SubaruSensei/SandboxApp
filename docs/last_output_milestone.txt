@@ -1,0 +1,35 @@
+Mode: hello32
+Exit Code: 0
+
+[dev] runtime32 copy skipped (unchanged)
+[dev] overlay: /storage/emulated/0/Sandbox 32/overlay/hello32 -> hello32
+[dev] overlay: /storage/emulated/0/Sandbox 32/overlay/Launcher.dex -> Launcher.dex
+[hello32 v4 probe]
+Runtime Dir: /data/user/0/com.sandbox.app/files/runtime32
+Game Lib: /data/user/0/com.sandbox.app/files/extracted/com.mojang.minecraftpe/libminecraftpe.so
+Data Dir: /data/user/0/com.sandbox.app/files/app_data
+Dex: /data/user/0/com.sandbox.app/files/extracted/com.mojang.minecraftpe/Launcher.dex:/data/user/0/com.sandbox.app/files/extracted/com.mojang.minecraftpe/classes.dex
+Loaded libc++.so
+Loaded libbase.so
+Loaded libartbase.so
+Loaded libdexfile.so
+Loaded libnativehelper.so
+Loaded libart.so
+BootClassPath: -Xbootclasspath:/data/user/0/com.sandbox.app/files/runtime32/javalib/core-oj.jar:/data/user/0/com.sandbox.app/files/runtime32/javalib/core-libart.jar:/data/user/0/com.sandbox.app/files/runtime32/javalib/core-icu4j.jar:/data/user/0/com.sandbox.app/files/runtime32/javalib/apache-xml.jar:/data/user/0/com.sandbox.app/files/runtime32/javalib/bouncycastle.jar:/data/user/0/com.sandbox.app/files/runtime32/javalib/okhttp.jar:/data/user/0/com.sandbox.app/files/runtime32/javalib/service-art.jar:/data/user/0/com.sandbox.app/files/extracted/com.mojang.minecraftpe/Launcher.dex:/data/user/0/com.sandbox.app/files/extracted/com.mojang.minecraftpe/classes.dex:/data/user/0/com.sandbox.app/files/runtime32/framework/org.apache.http.legacy.jar:/data/user/0/com.sandbox.app/files/runtime32/framework/framework.jar
+JavaVM Created at 0xf5f03310
+FindClass(String)=0xf7dd6001
+FindClass(MinecraftLauncher)=0xf7dd6005
+main method id=0xd8c98d94
+probe com/mojang/android/net/HTTPResponse = 0xf7dd6009
+probe com/mojang/android/net/HTTPRequest = 0xf7dd600d
+probe com/mojang/minecraftpe/HardwareInformation = 0xf7dd6011
+probe com/mojang/minecraftpe/MainActivity = 0xf7dd6015
+probe GetMethodID(HTTPResponse.getStatus)=0xd8c98fac
+probe org/apache/http/Header = 0xf7dd601d
+DIRECT mode: JNI_OnLoad from main thread
+dlopen game = 0x350bad7d
+JNI_OnLoad = 0xcec6af41
+JNI_OnLoad returned: 0x10004
+
+--- cmd ---
+/system/bin/linker /data/user/0/com.sandbox.app/files/hello32 /data/user/0/com.sandbox.app/files/runtime32 /data/user/0/com.sandbox.app/files/extracted/com.mojang.minecraftpe/libminecraftpe.so /data/user/0/com.sandbox.app/files/app_data /data/user/0/com.sandbox.app/files/extracted/com.mojang.minecraftpe/Launcher.dex:/data/user/0/com.sandbox.app/files/extracted/com.mojang.minecraftpe/classes.dex
