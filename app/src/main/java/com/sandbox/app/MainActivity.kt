@@ -393,7 +393,12 @@ class MainActivity : AppCompatActivity() {
                     buf.append("\n[dev] TIMEOUT after ").append(cfg.timeoutSec).append("s, process killed\n")
                 }
                 reader.join(2000)
-                exitCode = process.exitValue()
+                try {
+                    exitCode = process.exitValue()
+                } catch (e: Exception) {
+                    exitCode = 124 // Standard timeout code
+                    out.append("\n[dev] process still alive, but watchdog forced cleanup\n")
+                }
                 out.append(buf.toString())
 
                 val ll = File(writableDataDir, "launcher_log.txt")
