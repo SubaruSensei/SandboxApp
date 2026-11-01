@@ -91,6 +91,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+            }
+        }
+
         setContentView(R.layout.activity_main)
 
         if (!apksDir.exists()) apksDir.mkdirs()
@@ -274,6 +281,28 @@ class MainActivity : AppCompatActivity() {
             dst.setExecutable(true, false)
             log.append("[dev] overlay: ").append(src.absolutePath).append(" -> ").append(dst.name).append("\n")
         }
+    }
+
+    
+    private fun startSandboxService() {
+        try {
+            val intent = android.content.Intent(this, SandboxService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+            android.util.Log.d("Sandbox", "Foreground service started")
+        } catch (e: Exception) {
+            android.util.Log.e("Sandbox", "Service start failed: ${e.message}")
+        }
+    }
+
+    private fun stopSandboxService() {
+        try {
+            stopService(android.content.Intent(this, SandboxService::class.java))
+            android.util.Log.d("Sandbox", "Foreground service stopped")
+        } catch (e: Exception) {}
     }
 
     private fun runSandboxApp(app: SandboxApp) {
