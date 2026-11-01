@@ -5,11 +5,11 @@ import java.io.File
 import java.util.Properties
 
 class DevConfig {
-    var mode = "app_process32"
+    var mode = "hello32"
     var appProcessArgs = "-Xnoimage-dex2oat\n-Xint\n-Xusejit:false"
-    var extraBootJars = "framework/framework.jar"
+    var extraBootJars = "framework/framework.jar\njavalib/classes.jar"
     var helloExtraArgs = ""
-    var extraEnv = ""
+    var extraEnv = "LD_LIBRARY_PATH=/data/user/0/com.sandbox.app/files/runtime32:/data/user/0/com.sandbox.app/files/extracted/com.mojang.minecraftpe\nLD_PRELOAD=libc++_art.so\nHELLO_DIRECT=1\nHELLO_EXTRA_BOOT=/data/user/0/com.sandbox.app/files/runtime32/framework/org.apache.http.legacy.jar:/data/user/0/com.sandbox.app/files/runtime32/framework/framework.jar"
     var useShim = true
     var skipRuntimeCopy = true
     var useOverlay = true
