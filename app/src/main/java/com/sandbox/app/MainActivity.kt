@@ -338,6 +338,49 @@ class MainActivity : AppCompatActivity() {
                 File(writableDataDir, "launcher_log.txt").delete()
                 val dexCp = launcherFile.absolutePath + ":" + File(extractDir, "classes.dex").absolutePath
 
+                // --- 🛠️ SURFACE VIEW INJECTION ---
+                val surfaceLatch = java.util.concurrent.CountDownLatch(1)
+                runOnUiThread {
+                    val rootLayout = findViewById<android.view.ViewGroup>(android.R.id.content)
+                    rootLayout.findViewWithTag<android.view.SurfaceView>("sandbox_surface")?.let {
+                        rootLayout.removeView(it)
+                    }
+                    val surfaceView = android.view.SurfaceView(this)
+                    surfaceView.tag = "sandbox_surface"
+                    surfaceView.layoutParams = android.widget.FrameLayout.LayoutParams(
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+                    )
+                    // Add to the root layout, pushed to the back
+                    rootLayout.addView(surfaceView, 0)
+
+                    surfaceView.holder.addCallback(object : android.view.SurfaceHolder.Callback {
+                        override fun surfaceCreated(holder: android.view.SurfaceHolder) {
+                            try {
+                                val parcel = android.os.Parcel.obtain()
+                                holder.surface.writeToParcel(parcel, 0)
+                                val bytes = parcel.marshall()
+                                File(filesDir, "surface.bin").writeBytes(bytes)
+                                parcel.recycle()
+                                out.append("[dev] surface.bin written successfully!\n")
+                            } catch (e: Exception) {
+                                out.append("[dev] Failed to write surface.bin: ${e.message}\n")
+                            } finally {
+                                surfaceLatch.countDown()
+                            }
+                        }
+                        override fun surfaceChanged(holder: android.view.SurfaceHolder, format: Int, width: Int, height: Int) {}
+                        override fun surfaceDestroyed(holder: android.view.SurfaceHolder) {}
+                    })
+                }
+                
+                // Wait for surface to be created (max 5 seconds)
+                val surfaceReady = surfaceLatch.await(5, java.util.concurrent.TimeUnit.SECONDS)
+                if (!surfaceReady) {
+                    out.append("[dev] WARNING: SurfaceView creation timed out!\n")
+                }
+                // --------------------------------
+
                 val cmd = ArrayList<String>()
                 cmd.add("/system/bin/linker")
                 if (cfg.mode == "hello32") {
