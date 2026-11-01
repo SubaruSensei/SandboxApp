@@ -24,6 +24,8 @@ import java.util.Locale
 import java.util.zip.ZipFile
 
 class MainActivity : AppCompatActivity() {
+    private var isRunning = false
+    private var loadingOverlay: View? = null
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: AppAdapter
@@ -32,6 +34,37 @@ class MainActivity : AppCompatActivity() {
     private val baseDir = File(Environment.getExternalStorageDirectory(), "Sandbox 32")
     private val apksDir = File(baseDir, "apks")
     private val dataDir = File(baseDir, "data")
+
+    
+    private fun showLoading() {
+        if (loadingOverlay != null) return
+        val layout = findViewById<android.view.ViewGroup>(android.R.id.content)
+        val overlay = android.widget.FrameLayout(this)
+        overlay.layoutParams = android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+        )
+        overlay.setBackgroundColor(0xAA000000.toInt()) // অর্ধ-স্বচ্ছ কালো
+        overlay.isClickable = true // ক্লিক ব্লক করবে
+        overlay.isFocusable = true
+
+        val spinner = android.widget.ProgressBar(this)
+        val params = android.widget.FrameLayout.LayoutParams(150, 150)
+        params.gravity = android.view.Gravity.CENTER
+        spinner.layoutParams = params
+        overlay.addView(spinner)
+
+        layout.addView(overlay)
+        loadingOverlay = overlay
+    }
+
+    private fun hideLoading() {
+        loadingOverlay?.let {
+            (it.parent as? android.view.ViewGroup)?.removeView(it)
+        }
+        loadingOverlay = null
+        isRunning = false
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -221,6 +254,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun runSandboxApp(app: SandboxApp) {
+        if (isRunning) return
+                isRunning = true
+                runOnUiThread { showLoading() }
         Thread {
             val out = StringBuilder()
             var exitCode = -999
@@ -349,6 +385,7 @@ class MainActivity : AppCompatActivity() {
                 f.writeText(dialogText + "\n--- cmd ---\n" + cmdLine + "\n")
             } catch (e: Exception) { }
             runOnUiThread {
+                hideLoading()
                 AlertDialog.Builder(this)
                     .setTitle("Sandbox Output")
                     .setMessage(dialogText)
