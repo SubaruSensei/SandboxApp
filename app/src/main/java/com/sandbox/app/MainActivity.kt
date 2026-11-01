@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.View
 import android.os.Environment
 import android.provider.Settings
 import android.widget.ImageButton
@@ -25,7 +26,7 @@ import java.util.zip.ZipFile
 
 class MainActivity : AppCompatActivity() {
     private var isRunning = false
-    private var loadingOverlay: View? = null
+    private var loadingOverlay: android.view.View? = null
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: AppAdapter
@@ -59,8 +60,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun hideLoading() {
-        loadingOverlay?.let {
-            (it.parent as? android.view.ViewGroup)?.removeView(it)
+        loadingOverlay?.let { v ->
+            (v.parent as? android.view.ViewGroup)?.removeView(v)
         }
         loadingOverlay = null
         isRunning = false
