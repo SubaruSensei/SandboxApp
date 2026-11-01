@@ -37,6 +37,10 @@ class MainActivity : AppCompatActivity() {
     private val dataDir = File(baseDir, "data")
 
     
+        private var watchdogHandler: android.os.Handler? = null
+    private var watchdogRunnable: Runnable? = null
+    private var currentProcess: Process? = null
+
     private fun showLoading() {
         if (loadingOverlay != null) return
         val layout = findViewById<android.view.ViewGroup>(android.R.id.content)
@@ -45,8 +49,8 @@ class MainActivity : AppCompatActivity() {
             android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
             android.widget.FrameLayout.LayoutParams.MATCH_PARENT
         )
-        overlay.setBackgroundColor(0xAA000000.toInt()) // অর্ধ-স্বচ্ছ কালো
-        overlay.isClickable = true // ক্লিক ব্লক করবে
+        overlay.setBackgroundColor(0xAA000000.toInt())
+        overlay.isClickable = true
         overlay.isFocusable = true
 
         val spinner = android.widget.ProgressBar(this)
@@ -54,17 +58,35 @@ class MainActivity : AppCompatActivity() {
         params.gravity = android.view.Gravity.CENTER
         spinner.layoutParams = params
         overlay.addView(spinner)
-
         layout.addView(overlay)
         loadingOverlay = overlay
+
+        // Watchdog: Force cleanup after timeout+3 seconds
+        val timeoutSec = DevConfig.load().timeoutSec
+        watchdogRunnable = Runnable {
+            android.util.Log.w("Sandbox", "WATCHDOG FIRED!")
+            Thread {
+                try {
+                    Runtime.getRuntime().exec(arrayOf("su", "-c", "pkill -9 -f hello32")).waitFor()
+                } catch (e: Exception) {}
+            }.start()
+            hideLoading()
+        }
+        watchdogHandler = android.os.Handler(android.os.Looper.getMainLooper())
+        watchdogHandler?.postDelayed(watchdogRunnable!!, ((timeoutSec + 3) * 1000).toLong())
+        android.util.Log.d("Sandbox", "Watchdog scheduled for ${timeoutSec + 3}s")
     }
 
-    private fun hideLoading() {
+        private fun hideLoading() {
+        watchdogRunnable?.let { watchdogHandler?.removeCallbacks(it) }
+        watchdogHandler = null
+        watchdogRunnable = null
         loadingOverlay?.let { v ->
-            (v.parent as? android.view.ViewGroup)?.removeView(v)
+            try { (v.parent as? android.view.ViewGroup)?.removeView(v) } catch (e: Exception) {}
         }
         loadingOverlay = null
         isRunning = false
+        android.util.Log.d("Sandbox", "hideLoading called")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -357,7 +379,8 @@ class MainActivity : AppCompatActivity() {
                     if (idx > 0) pb.environment()[line.substring(0, idx).trim()] = line.substring(idx + 1).trim()
                 }
 
-                val process = pb.redirectErrorStream(true).start()
+                currentProcess = pb.redirectErrorStream(true).start()
+                val process = currentProcess!!
                 val buf = StringBuffer()
                 val reader = Thread {
                     try { process.inputStream.bufferedReader().forEachLine { buf.append(it).append("\n") } } catch (e: Exception) { }
