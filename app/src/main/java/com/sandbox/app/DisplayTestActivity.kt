@@ -12,6 +12,7 @@ class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        System.loadLibrary("engine64")
         
         // স্ক্রিন যেন চালু থাকে (বন্ধ হয়ে না যায়)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
