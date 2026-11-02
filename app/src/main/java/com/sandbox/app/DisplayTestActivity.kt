@@ -9,6 +9,8 @@ import androidx.appcompat.app.AppCompatActivity
 class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
     
     private lateinit var surfaceView: SurfaceView
+    private var renderThread: Thread? = null
+    @Volatile private var isRunning = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,15 +30,25 @@ class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     // ক্যানভাস তৈরি হলে এই ফাংশনটা একবার কল হয়
     override fun surfaceCreated(holder: SurfaceHolder) {
-        // C++ এর nativeInit ফাংশনকে ক্যানভাসটা দিয়ে দিচ্ছি
         nativeInit(holder.surface)
+        
+        // 🔄 RENDER LOOP: এখন আমরা C++ কে বারবার ছবি আঁকতে বলব
+        isRunning = true
+        renderThread = Thread {
+            while (isRunning) {
+                nativeRender()
+                Thread.sleep(16) // 60 FPS (1000ms / 60)
+            }
+        }
+        renderThread?.start()
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
 
     // ক্যানভাস বন্ধ হলে বা অ্যাপ মিনিমাইজ হলে
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        // C++ মেমোরি ক্লিনআপ করবে
+        isRunning = false
+        renderThread?.join() // থ্রেড বন্ধ হওয়া পর্যন্ত অপেক্ষা করবে
         nativeDestroy()
     }
 
