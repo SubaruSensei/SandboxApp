@@ -9,6 +9,13 @@ import androidx.appcompat.app.AppCompatActivity
 class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
     
     private lateinit var surfaceView: SurfaceView
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val renderRunnable = object : Runnable {
+        override fun run() {
+            nativeRender()
+            handler.postDelayed(this, 16)
+        }
+    }
     private var renderThread: Thread? = null
     @Volatile private var isRunning = false
 
@@ -31,24 +38,14 @@ class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
     // ক্যানভাস তৈরি হলে এই ফাংশনটা একবার কল হয়
     override fun surfaceCreated(holder: SurfaceHolder) {
         nativeInit(holder.surface)
-        
-        // 🔄 RENDER LOOP: এখন আমরা C++ কে বারবার ছবি আঁকতে বলব
-        isRunning = true
-        renderThread = Thread {
-            while (isRunning) {
-                nativeRender()
-                Thread.sleep(16) // 60 FPS (1000ms / 60)
-            }
-        }
-        renderThread?.start()
+        handler.post(renderRunnable)
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
 
     // ক্যানভাস বন্ধ হলে বা অ্যাপ মিনিমাইজ হলে
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        isRunning = false
-        renderThread?.join() // থ্রেড বন্ধ হওয়া পর্যন্ত অপেক্ষা করবে
+        handler.removeCallbacks(renderRunnable)
         nativeDestroy()
     }
 
