@@ -29,5 +29,6 @@
             android:exported="false">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Running 32-bit sandbox runtime" />
         </service>
+            <activity android:name=".DisplayTestActivity" android:exported="false" />
     </application>
 </manifest>

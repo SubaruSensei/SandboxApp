@@ -5,7 +5,8 @@ plugins {
 android {
     namespace = "com.sandbox.app"
     compileSdk = 34
-    defaultConfig { 
+    defaultConfig {
+        ndk { abiFilters += listOf("arm64-v8a") } 
         applicationId = "com.sandbox.app"
         minSdk = 28
         targetSdk = 34
@@ -17,6 +18,13 @@ android {
         targetCompatibility = JavaVersion.VERSION_17 
     }
     kotlinOptions { jvmTarget = "17" }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
 }
 dependencies { 
     implementation("androidx.appcompat:appcompat:1.6.1")

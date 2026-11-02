@@ -23,6 +23,16 @@ class DevSettingsActivity : AppCompatActivity() {
         scroll.addView(root)
         setContentView(scroll)
 
+        val testBtn = Button(this)
+        testBtn.text = "Launch 64-bit Display Test"
+        testBtn.setBackgroundColor(android.graphics.Color.parseColor("#4CAF50"))
+        testBtn.setTextColor(android.graphics.Color.WHITE)
+        testBtn.setOnClickListener {
+            startActivity(android.content.Intent(this, DisplayTestActivity::class.java))
+        }
+        root.addView(testBtn, 0) // সবার ওপরে যোগ হবে
+
+
         fun label(t: String): TextView {
             val tv = TextView(this)
             tv.text = t
