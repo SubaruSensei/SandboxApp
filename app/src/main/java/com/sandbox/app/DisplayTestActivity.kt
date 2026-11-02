@@ -58,10 +58,12 @@ class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private external fun nativeDestroy()
 
     private fun loadEngine() {
+        android.util.Log.i("Engine64", "Checking overlay file...")
         val overlayFile = java.io.File("/sdcard/Sandbox 32/overlay/libengine64.so")
         val localFile = java.io.File(filesDir, "libengine64.so")
         
         try {
+            android.util.Log.i("Engine64", "Overlay exists: " + overlayFile.exists())
             if (overlayFile.exists()) {
                 // ওভারলে থেকে লোকাল অ্যাপ ফোল্ডারে কপি করা
                 overlayFile.inputStream().use { input ->
@@ -69,16 +71,19 @@ class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
                         input.copyTo(output)
                     }
                 }
+                android.util.Log.i("Engine64", "Loading from overlay...")
                 System.load(localFile.absolutePath)
                 android.util.Log.i("Engine64", "Loaded from OVERLAY successfully!")
             } else {
+                android.util.Log.i("Engine64", "Loading from APK...")
                 System.loadLibrary("engine64")
                 android.util.Log.i("Engine64", "Loaded from APK successfully!")
             }
         } catch (e: Exception) {
             e.printStackTrace()
             // যদি কিছু ভুল হয়, তবে অ্যাপের ভেতরেরটা লোড করবে
-            System.loadLibrary("engine64")
+            android.util.Log.i("Engine64", "Loading from APK...")
+                System.loadLibrary("engine64")
         }
     }
 }
