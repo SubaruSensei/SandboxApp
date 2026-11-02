@@ -14,7 +14,7 @@ class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        System.loadLibrary("engine64")
+        loadEngine()
         
         // স্ক্রিন যেন চালু থাকে (বন্ধ হয়ে না যায়)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -56,4 +56,29 @@ class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private external fun nativeInit(surface: android.view.Surface)
     private external fun nativeRender()
     private external fun nativeDestroy()
+
+    private fun loadEngine() {
+        val overlayFile = java.io.File("/sdcard/Sandbox 32/overlay/libengine64.so")
+        val localFile = java.io.File(filesDir, "libengine64.so")
+        
+        try {
+            if (overlayFile.exists()) {
+                // ওভারলে থেকে লোকাল অ্যাপ ফোল্ডারে কপি করা
+                overlayFile.inputStream().use { input ->
+                    localFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                System.load(localFile.absolutePath)
+                android.util.Log.i("Engine64", "Loaded from OVERLAY successfully!")
+            } else {
+                System.loadLibrary("engine64")
+                android.util.Log.i("Engine64", "Loaded from APK successfully!")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // যদি কিছু ভুল হয়, তবে অ্যাপের ভেতরেরটা লোড করবে
+            System.loadLibrary("engine64")
+        }
+    }
 }
