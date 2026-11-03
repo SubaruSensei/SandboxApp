@@ -24,7 +24,8 @@ class DevSettingsActivity : AppCompatActivity() {
         setContentView(scroll)
 
         val testBtn = Button(this)
-        testBtn.text = "Launch 64-bit Display Test"
+        testBtn.text = "🟢 Graphics Engine: READY\n(Tap to Test)"
+        testBtn.textSize = 18f
         testBtn.setBackgroundColor(android.graphics.Color.parseColor("#4CAF50"))
         testBtn.setTextColor(android.graphics.Color.WHITE)
         testBtn.setOnClickListener {
