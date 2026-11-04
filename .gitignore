@@ -1,0 +1,16 @@
+
+# Build outputs
+*.so
+*.so.*
+*.apk
+*.aab
+
+# Termux/backup snapshots
+*.pre_*
+*.deployed*
+
+# Gradle/IDE
+.gradle/
+build/
+local.properties
+.idea/
