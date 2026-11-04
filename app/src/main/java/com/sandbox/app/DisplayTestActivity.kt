@@ -54,6 +54,23 @@ class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private external fun nativeRender()
     private external fun nativeDestroy()
 
+    override fun onDestroy() {
+        handler.removeCallbacks(renderRunnable)
+        nativeDestroy()
+        try {
+            Runtime.getRuntime().exec(arrayOf("su", "-c", "pkill -9 -f hello32")).waitFor()
+        } catch (e: Exception) {}
+        super.onDestroy()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Kill hello32 when user leaves DisplayTest (back button)
+        try {
+            Runtime.getRuntime().exec(arrayOf("su", "-c", "pkill -9 -f hello32")).waitFor()
+        } catch (e: Exception) {}
+    }
+
     private fun loadEngine() {
         android.util.Log.i("Engine64", "Checking overlay file...")
         val overlayFile = java.io.File("/sdcard/Sandbox 32/overlay/libengine64.so")
