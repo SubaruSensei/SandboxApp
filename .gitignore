@@ -1,9 +1,12 @@
 
-# Build outputs
-*.so
-*.so.*
+# Build outputs (compiled binaries — NOT assets)
+app/src/main/cpp/*.so
+app/src/main/cpp/*.so.*
 *.apk
 *.aab
+
+# Exceptions: assets .so must stay tracked (needed by app)
+!app/src/main/assets/**/*.so
 
 # Termux/backup snapshots
 *.pre_*
