@@ -57,18 +57,13 @@ class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
     override fun onDestroy() {
         handler.removeCallbacks(renderRunnable)
         nativeDestroy()
-        try {
-            Runtime.getRuntime().exec(arrayOf("su", "-c", "pkill -9 -f hello32")).waitFor()
-        } catch (e: Exception) {}
         super.onDestroy()
     }
 
-    override fun onPause() {
-        super.onPause()
-        // Kill hello32 when user leaves DisplayTest (back button)
-        try {
-            Runtime.getRuntime().exec(arrayOf("su", "-c", "pkill -9 -f hello32")).waitFor()
-        } catch (e: Exception) {}
+
+
+    override fun onBackPressed() {
+        finish()
     }
 
     private fun loadEngine() {

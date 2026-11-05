@@ -299,8 +299,13 @@ static void ipc_reader_poll(void) {
                     static int wvp_log = 0;
                     if (wvp_log < 3) { wvp_log++; evlog("[MVP] prog=%u loc=%d\n", g_cur_program, wvpLoc); }
                     if (wvpLoc >= 0) {
-                        float identity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
-                        glUniformMatrix4fv(wvpLoc, 1, GL_FALSE, identity);
+                        float ortho[16] = {
+                            2.0f/width, 0, 0, 0,
+                            0, -2.0f/height, 0, 0,
+                            0, 0, 1.0f, 0,
+                            -1.0f, 1.0f, 0, 1
+                        };
+                        glUniformMatrix4fv(wvpLoc, 1, GL_FALSE, ortho);
                     }
                     if (g_default_vao) glBindVertexArray(g_default_vao);
                     if (g_arr) {
@@ -485,5 +490,8 @@ Java_com_sandbox_app_DisplayTestActivity_nativeDestroy(JNIEnv* env, jobject thiz
         if (context != EGL_NO_CONTEXT) eglDestroyContext(display, context);
         if (surface != EGL_NO_SURFACE) eglDestroySurface(display, surface);
         eglTerminate(display);
+        display = EGL_NO_DISPLAY;
+        surface = EGL_NO_SURFACE;
+        context = EGL_NO_CONTEXT;
     }
 }
