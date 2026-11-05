@@ -323,6 +323,8 @@ class MainActivity : AppCompatActivity() {
                 var mainLibPath: String? = null
                 val zip = ZipFile(apkPath)
                 for (entry in zip.entries()) {
+                    if (entry.isDirectory) continue
+                    
                     if (entry.name == "classes.dex") {
                         zip.getInputStream(entry).use { i -> FileOutputStream(File(extractDir, "classes.dex")).use { o -> i.copyTo(o) } }
                     }
@@ -330,6 +332,15 @@ class MainActivity : AppCompatActivity() {
                         val targetFile = File(extractDir, File(entry.name).name)
                         zip.getInputStream(entry).use { input -> FileOutputStream(targetFile).use { output -> input.copyTo(output) } }
                         if (mainLibPath == null || targetFile.name.contains("minecraft")) mainLibPath = targetFile.absolutePath
+                    }
+                    
+                    // Auto-extract assets (permanently fixes reinstall data wipe issue)
+                    if (entry.name.startsWith("assets/")) {
+                        val targetFile = File(extractDir, entry.name)
+                        targetFile.parentFile?.mkdirs()
+                        if (!targetFile.exists()) {
+                            zip.getInputStream(entry).use { input -> FileOutputStream(targetFile).use { output -> input.copyTo(output) } }
+                        }
                     }
                 }
                 zip.close()
