@@ -412,11 +412,11 @@ static void reset_state_no_egl(void) {
 extern "C" JNIEXPORT void JNICALL
 Java_com_sandbox_app_DisplayTestActivity_nativeInit(JNIEnv* env, jobject thiz, jobject jsurface) {
     if (!jsurface) return;
-    if (g_initialized) { IPC_LOG("nativeInit: already initialized"); return; }
+    if (g_initialized) { /* log removed */ return; }
     g_initialized = 1;
 
     ANativeWindow* win = ANativeWindow_fromSurface(env, jsurface);
-    if (!win) { IPC_LOG("nativeInit: ANativeWindow NULL"); g_initialized = 0; return; }
+    if (!win) { /* log removed */ g_initialized = 0; return; }
 
     if (display == EGL_NO_DISPLAY) {
         display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
@@ -440,7 +440,7 @@ Java_com_sandbox_app_DisplayTestActivity_nativeInit(JNIEnv* env, jobject thiz, j
     ANativeWindow_release(win);
     
     if (surface == EGL_NO_SURFACE) {
-        IPC_LOG("nativeInit: eglCreateWindowSurface FAILED");
+        /* log removed */
         g_initialized = 0;
         return; /* CRITICAL FIX: Prevent eglMakeCurrent crash on NULL surface */
     }
@@ -461,7 +461,7 @@ Java_com_sandbox_app_DisplayTestActivity_nativeInit(JNIEnv* env, jobject thiz, j
     glEnableVertexAttribArray(0); glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 16, (void*)0);
     glEnableVertexAttribArray(1); glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 16, (void*)8);
 
-    unsigned char pixels[256 * 256 * 4];
+    static unsigned char pixels[256 * 256 * 4];
     for(int y=0; y<256; y++) { for(int x=0; x<256; x++) { int i = (y*256+x)*4; pixels[i]=x; pixels[i+1]=y; pixels[i+2]=128; pixels[i+3]=255; } }
     glGenTextures(1, &tex); glBindTexture(GL_TEXTURE_2D, tex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 256, 256, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
