@@ -424,45 +424,54 @@ static void reset_state_no_egl(void) {
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_sandbox_app_DisplayTestActivity_nativeInit(JNIEnv* env, jobject thiz, jobject jsurface) {
-    if (!jsurface) return;
-    if (g_initialized) { /* log removed */ return; }
+    IPC_LOG("nativeInit: ENTRY");
+    if (!jsurface) { IPC_LOG("nativeInit: jsurface NULL"); return; }
+    if (g_initialized) { IPC_LOG("nativeInit: already initialized"); return; }
     g_initialized = 1;
 
     ANativeWindow* win = ANativeWindow_fromSurface(env, jsurface);
-    if (!win) { /* log removed */ g_initialized = 0; return; }
+    if (!win) { IPC_LOG("nativeInit: ANativeWindow NULL"); g_initialized = 0; return; }
+    IPC_LOG("nativeInit: got win=%p", (void*)win);
 
     if (display == EGL_NO_DISPLAY) {
         display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-        if (display == EGL_NO_DISPLAY) { ANativeWindow_release(win); g_initialized = 0; return; }
-        if (!eglInitialize(display, nullptr, nullptr)) { display = EGL_NO_DISPLAY; ANativeWindow_release(win); g_initialized = 0; return; }
-        
+        if (display == EGL_NO_DISPLAY) { IPC_LOG("nativeInit: eglGetDisplay FAIL"); ANativeWindow_release(win); g_initialized = 0; return; }
+        if (!eglInitialize(display, nullptr, nullptr)) { IPC_LOG("nativeInit: eglInitialize FAIL"); display = EGL_NO_DISPLAY; ANativeWindow_release(win); g_initialized = 0; return; }
+
         const EGLint cfgAttrs[] = {EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT, EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8, EGL_ALPHA_SIZE, 8, EGL_NONE};
         EGLint n = 0;
-        if (!eglChooseConfig(display, cfgAttrs, &g_egl_cfg, 1, &n) || n == 0) { 
-            display = EGL_NO_DISPLAY; ANativeWindow_release(win); g_initialized = 0; return; 
+        if (!eglChooseConfig(display, cfgAttrs, &g_egl_cfg, 1, &n) || n == 0) {
+            IPC_LOG("nativeInit: eglChooseConfig FAIL n=%d", n);
+            display = EGL_NO_DISPLAY; ANativeWindow_release(win); g_initialized = 0; return;
         }
+        IPC_LOG("nativeInit: display OK");
     }
 
     if (context == EGL_NO_CONTEXT) {
         const EGLint ctxAttrs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
         context = eglCreateContext(display, g_egl_cfg, EGL_NO_CONTEXT, ctxAttrs);
-        if (context == EGL_NO_CONTEXT) { ANativeWindow_release(win); g_initialized = 0; return; }
+        if (context == EGL_NO_CONTEXT) { IPC_LOG("nativeInit: eglCreateContext FAIL"); ANativeWindow_release(win); g_initialized = 0; return; }
+        IPC_LOG("nativeInit: context OK");
     }
 
     surface = eglCreateWindowSurface(display, g_egl_cfg, win, nullptr);
     ANativeWindow_release(win);
-    
+
     if (surface == EGL_NO_SURFACE) {
-        /* log removed */
+        IPC_LOG("nativeInit: eglCreateWindowSurface FAIL");
         g_initialized = 0;
-        return; /* CRITICAL FIX: Prevent eglMakeCurrent crash on NULL surface */
+        return;
     }
+    IPC_LOG("nativeInit: surface OK");
 
     eglMakeCurrent(display, surface, surface, context);
+    IPC_LOG("nativeInit: makeCurrent OK");
+
     eglQuerySurface(display, surface, EGL_WIDTH, &width);
     eglQuerySurface(display, surface, EGL_HEIGHT, &height);
     glViewport(0, 0, width, height);
 
+    /* Shaders */
     GLuint vs = glCreateShader(GL_VERTEX_SHADER); glShaderSource(vs, 1, &VS, nullptr); glCompileShader(vs);
     GLuint fs = glCreateShader(GL_FRAGMENT_SHADER); glShaderSource(fs, 1, &FS, nullptr); glCompileShader(fs);
     prog = glCreateProgram(); glAttachShader(prog, vs); glAttachShader(prog, fs); glLinkProgram(prog);
@@ -482,7 +491,10 @@ Java_com_sandbox_app_DisplayTestActivity_nativeInit(JNIEnv* env, jobject thiz, j
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     glGenVertexArrays(1, &g_default_vao);
+    IPC_LOG("nativeInit: shaders OK");
     ipc_reader_init();
+    IPC_LOG("nativeInit: ipc_reader_init OK");
+
 }
 
 
