@@ -452,7 +452,9 @@ class MainActivity : AppCompatActivity() {
 
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                     try {
-                        startActivity(android.content.Intent(this, DisplayTestActivity::class.java))
+                        val intent = android.content.Intent(this, DisplayTestActivity::class.java)
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                        startActivity(intent)
                     } catch (e: Exception) {
                         android.util.Log.e("Sandbox", "DisplayTest launch failed: " + e.message)
                     }

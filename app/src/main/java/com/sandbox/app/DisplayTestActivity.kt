@@ -66,7 +66,8 @@ class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
 
     override fun onBackPressed() {
-        finish()
+        // Move to background instead of destroying the activity
+        moveTaskToBack(true)
     }
 
     private fun loadEngine() {
