@@ -13,6 +13,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+static int g_initialized = 0;
 static EGLDisplay display = EGL_NO_DISPLAY;
 static EGLSurface surface = EGL_NO_SURFACE;
 static EGLContext context = EGL_NO_CONTEXT;
@@ -410,45 +411,45 @@ static void reset_state_no_egl(void) {
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_sandbox_app_DisplayTestActivity_nativeInit(JNIEnv* env, jobject thiz, jobject jsurface) {
-    if (!jsurface) { IPC_LOG("nativeInit: jsurface NULL"); return; }
+    if (!jsurface) return;
+    if (g_initialized) { IPC_LOG("nativeInit: already initialized"); return; }
+    g_initialized = 1;
 
-    /* 1. Safely destroy old surface if exists */
-    if (surface != EGL_NO_SURFACE && display != EGL_NO_DISPLAY) {
-        eglDestroySurface(display, surface);
-        surface = EGL_NO_SURFACE;
+    ANativeWindow* win = ANativeWindow_fromSurface(env, jsurface);
+    if (!win) { IPC_LOG("nativeInit: ANativeWindow NULL"); g_initialized = 0; return; }
+
+    if (display == EGL_NO_DISPLAY) {
+        display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+        if (display == EGL_NO_DISPLAY) { ANativeWindow_release(win); g_initialized = 0; return; }
+        if (!eglInitialize(display, nullptr, nullptr)) { display = EGL_NO_DISPLAY; ANativeWindow_release(win); g_initialized = 0; return; }
+        
+        const EGLint cfgAttrs[] = {EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT, EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8, EGL_ALPHA_SIZE, 8, EGL_NONE};
+        EGLint n = 0;
+        if (!eglChooseConfig(display, cfgAttrs, &g_egl_cfg, 1, &n) || n == 0) { 
+            display = EGL_NO_DISPLAY; ANativeWindow_release(win); g_initialized = 0; return; 
+        }
     }
 
-    /* 2. Get Native Window */
-    ANativeWindow* win = ANativeWindow_fromSurface(env, jsurface);
-    if (!win) { IPC_LOG("nativeInit: ANativeWindow NULL"); return; }
+    if (context == EGL_NO_CONTEXT) {
+        const EGLint ctxAttrs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
+        context = eglCreateContext(display, g_egl_cfg, EGL_NO_CONTEXT, ctxAttrs);
+        if (context == EGL_NO_CONTEXT) { ANativeWindow_release(win); g_initialized = 0; return; }
+    }
 
-    /* 3. Initialize EGL Display */
-    display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (display == EGL_NO_DISPLAY) { ANativeWindow_release(win); return; }
-    if (!eglInitialize(display, nullptr, nullptr)) { display = EGL_NO_DISPLAY; ANativeWindow_release(win); return; }
-
-    /* 4. Choose Config */
-    const EGLint cfgAttrs[] = {EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT, EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8, EGL_ALPHA_SIZE, 8, EGL_NONE};
-    EGLint n = 0;
-    if (!eglChooseConfig(display, cfgAttrs, &g_egl_cfg, 1, &n) || n == 0) { ANativeWindow_release(win); return; }
-
-    /* 5. Create Context */
-    const EGLint ctxAttrs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
-    context = eglCreateContext(display, g_egl_cfg, EGL_NO_CONTEXT, ctxAttrs);
-    if (context == EGL_NO_CONTEXT) { ANativeWindow_release(win); return; }
-
-    /* 6. Create Surface */
     surface = eglCreateWindowSurface(display, g_egl_cfg, win, nullptr);
-    ANativeWindow_release(win); /* EGL keeps its own reference, we release ours */
-    if (surface == EGL_NO_SURFACE) { return; }
+    ANativeWindow_release(win);
+    
+    if (surface == EGL_NO_SURFACE) {
+        IPC_LOG("nativeInit: eglCreateWindowSurface FAILED");
+        g_initialized = 0;
+        return; /* CRITICAL FIX: Prevent eglMakeCurrent crash on NULL surface */
+    }
 
-    /* 7. Make Current */
     eglMakeCurrent(display, surface, surface, context);
     eglQuerySurface(display, surface, EGL_WIDTH, &width);
     eglQuerySurface(display, surface, EGL_HEIGHT, &height);
     glViewport(0, 0, width, height);
 
-    /* 8. Shaders & Buffers */
     GLuint vs = glCreateShader(GL_VERTEX_SHADER); glShaderSource(vs, 1, &VS, nullptr); glCompileShader(vs);
     GLuint fs = glCreateShader(GL_FRAGMENT_SHADER); glShaderSource(fs, 1, &FS, nullptr); glCompileShader(fs);
     prog = glCreateProgram(); glAttachShader(prog, vs); glAttachShader(prog, fs); glLinkProgram(prog);
@@ -468,9 +469,9 @@ Java_com_sandbox_app_DisplayTestActivity_nativeInit(JNIEnv* env, jobject thiz, j
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     glGenVertexArrays(1, &g_default_vao);
-
     ipc_reader_init();
 }
+
 
 
 
@@ -513,23 +514,16 @@ Java_com_sandbox_app_DisplayTestActivity_nativeRender(JNIEnv* env, jobject thiz)
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_sandbox_app_DisplayTestActivity_nativeDestroy(JNIEnv* env, jobject thiz) {
-    if (surface != EGL_NO_SURFACE && display != EGL_NO_DISPLAY) {
-        eglDestroySurface(display, surface);
-    }
-    if (context != EGL_NO_CONTEXT && display != EGL_NO_DISPLAY) {
-        eglDestroyContext(display, context);
-    }
-    /* WARNING: DO NOT call eglTerminate() or eglMakeCurrent(NO_SURFACE) here! Adreno crashes. */
-    display = EGL_NO_DISPLAY;
-    context = EGL_NO_CONTEXT;
-    surface = EGL_NO_SURFACE;
-
+    if (!g_initialized) return; /* Prevent double destroy from surfaceDestroyed and onDestroy */
+    g_initialized = 0;
+    
     if (g_ipc) { munmap((void*)g_ipc, IPC_SIZE); g_ipc = NULL; }
     if (g_evlog) { fclose(g_evlog); g_evlog = NULL; }
     g_default_vao = 0;
     prog = vao = vbo = tex = 0;
     width = height = 0;
 }
+
 
 
 
