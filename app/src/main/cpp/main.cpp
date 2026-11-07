@@ -498,7 +498,6 @@ void update_texture_from_file() {
 extern "C" JNIEXPORT void JNICALL
 Java_com_sandbox_app_DisplayTestActivity_nativeRender(JNIEnv* env, jobject thiz) {
     if (surface == EGL_NO_SURFACE) return;
-    if (!g_ipc) ipc_reader_init();
     ipc_reader_poll();
     static int beacon_frames = 0;
     if (g_ipc && g_ipc[2] == 16 && beacon_frames < 180) {
