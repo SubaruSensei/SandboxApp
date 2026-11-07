@@ -60,8 +60,6 @@ class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
                 try {
             Runtime.getRuntime().exec(arrayOf("su", "-c", "pkill -9 -f hello32")).waitFor()
         } catch (e: Exception) {}
-        // Kill ONLY this :displaytest process, MainActivity stays alive
-        android.os.Process.killProcess(android.os.Process.myPid())
         super.onDestroy()
     }
 
