@@ -173,6 +173,11 @@ static void ipc_reader_poll(void) {
                         evlog("[LINK_PROGRAM FAIL] id=%u real=%u err=%.400s\n", id, rp, plog);
                     } else {
                         evlog("[LINK_PROGRAM OK] id=%u real=%u\n", id, rp);
+                        /* Log Attribute Locations */
+                        GLint pos = glGetAttribLocation(rp, "POSITION");
+                        GLint col = glGetAttribLocation(rp, "COLOR");
+                        GLint uv  = glGetAttribLocation(rp, "TEXCOORD_0");
+                        if (pos >= 0) evlog("[ATTR] prog=%u POS=%d COL=%d UV=%d\n", rp, pos, col, uv);
                     }
                 }
                 break;
