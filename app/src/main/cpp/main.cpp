@@ -318,12 +318,20 @@ static void ipc_reader_poll(void) {
                     if (g_default_vao) glBindVertexArray(g_default_vao);
                     if (g_arr) {
                         glBindBuffer(0x8892, g_arr);
-                        glEnableVertexAttribArray(0);
-                        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 28, (void*)0);
-                        glEnableVertexAttribArray(1);
-                        glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, 28, (void*)16);
-                        glEnableVertexAttribArray(2);
-                        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 28, (void*)20);
+                        GLint pos = glGetAttribLocation(g_cur_program, "POSITION");
+                        GLint col = glGetAttribLocation(g_cur_program, "COLOR");
+                        GLint uv0 = glGetAttribLocation(g_cur_program, "TEXCOORD_0");
+                        GLint uv1 = glGetAttribLocation(g_cur_program, "TEXCOORD_1");
+                        GLint nrm = glGetAttribLocation(g_cur_program, "NORMAL");
+                        
+                        if (pos >= 0) { glEnableVertexAttribArray(pos); glVertexAttribPointer(pos, 4, GL_FLOAT, GL_FALSE, 28, (void*)0); }
+                        if (col >= 0) { glEnableVertexAttribArray(col); glVertexAttribPointer(col, 4, GL_UNSIGNED_BYTE, GL_TRUE, 28, (void*)16); }
+                        if (uv0 >= 0) { glEnableVertexAttribArray(uv0); glVertexAttribPointer(uv0, 2, GL_FLOAT, GL_FALSE, 28, (void*)20); }
+                        if (uv1 >= 0) { glEnableVertexAttribArray(uv1); glVertexAttribPointer(uv1, 2, GL_FLOAT, GL_FALSE, 28, (void*)20); }
+                        if (nrm >= 0) { glEnableVertexAttribArray(nrm); glVertexAttribPointer(nrm, 4, GL_UNSIGNED_BYTE, GL_TRUE, 28, (void*)16); }
+                        
+                        static int attr_log = 0;
+                        if (attr_log < 5) { attr_log++; evlog("[ATTR] prog=%u pos=%d col=%d uv0=%d uv1=%d nrm=%d\n", g_cur_program, pos, col, uv0, uv1, nrm); }
                     }
                     while (glGetError() != GL_NO_ERROR) {}  /* drain pre-existing errors */
                     glDrawElements(mode, count, dtype, (void*)(size_t)offset);
