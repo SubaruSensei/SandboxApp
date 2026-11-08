@@ -66,8 +66,10 @@ class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
 
     override fun onBackPressed() {
-        // Move to background instead of destroying the activity
-        moveTaskToBack(true)
+        // Go back to MainActivity without finishing this activity
+        val intent = android.content.Intent(this, MainActivity::class.java)
+        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+        startActivity(intent)
     }
 
     private fun loadEngine() {
