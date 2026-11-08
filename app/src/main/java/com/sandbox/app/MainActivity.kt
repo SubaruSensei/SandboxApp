@@ -25,6 +25,21 @@ import java.util.Locale
 import java.util.zip.ZipFile
 
 class MainActivity : AppCompatActivity() {
+    private fun filterOutput(raw: String): String {
+        val lines = raw.lines()
+        val essentialKeywords = listOf(
+            "Mode:", "Exit Code:", "FPS", "[GAME]", "[dev]", "TIMEOUT", "killed",
+            "\u2705", "\uD83D\uDE80", "\uD83C\uDF89", "\uD83C\uDFAE", "\uD83D\uDD27",
+            "\u25B6", "\uD83D\uDCC1", "\uD83D\uDCBE", "\u274C", "SIGSEGV", "SIGBUS", "FATAL"
+        )
+        val filtered = lines.filter { line ->
+            essentialKeywords.any { keyword -> line.contains(keyword) }
+        }
+        if (filtered.isEmpty()) return raw.takeLast(1500)
+        val text = filtered.joinToString("\n")
+        return if (text.length > 3000) "... [Truncated " + (text.length - 3000) + " chars] ...\n" + text.takeLast(3000) else text
+    }
+
     private var isRunning = false
     private var loadingOverlay: android.view.View? = null
 
@@ -500,7 +515,7 @@ class MainActivity : AppCompatActivity() {
                 out.append("\n[dev] EXCEPTION: ").append(e.toString()).append("\n")
             }
 
-            val dialogText = "Mode: $mode\nExit Code: $exitCode\n\n$out"
+            val dialogText = "Mode: $mode\nExit Code: $exitCode\n\n" + filterOutput(out.toString())
             try {
                 val f = DevConfig.lastOutputFile()
                 f.parentFile?.mkdirs()
