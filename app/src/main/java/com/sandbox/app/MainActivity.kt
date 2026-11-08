@@ -28,11 +28,10 @@ class MainActivity : AppCompatActivity() {
     private fun filterOutput(raw: String): String {
         val lines = raw.lines()
         val essentialKeywords = listOf(
-            "Mode:", "Exit Code:", "FPS", "TIMEOUT", "SIGSEGV", "SIGBUS", "FATAL",
-            "\u2705", "\uD83D\uDE80", "\uD83C\uDF89", "\u274C", 
-            "hello32", "JavaVM", "glstub", "Game library", "[got]", "[hook]", "[IPC]", 
-            "JNI_OnLoad", "ANativeActivity", "[GAME]", "[dev]", "MinecraftClient",
-            "[asset]", "[fw]", "[base]", "[runtime]", "[PFC]"
+            "Mode:", "Exit Code:", "FPS", "TIMEOUT", "SIGSEGV", "SIGBUS", "FATAL", "Error", "Exception",
+            "\u2705", "\uD83D\uDE80", "\uD83C\uDF89", "\u274C", "\uD83D\uDD27", "\u25B6",
+            "hello32", "JavaVM", "glstub", "Game library", "[got]", "[hook]", "[IPC]",
+            "JNI_OnLoad", "ANativeActivity", "[GAME]", "[dev]", "MinecraftClient", "[fw]", "[runtime]", "[base]"
         )
         val filtered = lines.filter { line ->
             essentialKeywords.any { keyword -> line.contains(keyword) }
