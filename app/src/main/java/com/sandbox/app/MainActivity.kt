@@ -31,7 +31,8 @@ class MainActivity : AppCompatActivity() {
             "Mode:", "Exit Code:", "FPS", "TIMEOUT", "SIGSEGV", "SIGBUS", "FATAL",
             "\u2705", "\uD83D\uDE80", "\uD83C\uDF89", "\u274C", 
             "hello32", "JavaVM", "glstub", "Game library", "[got]", "[hook]", "[IPC]", 
-            "JNI_OnLoad", "ANativeActivity", "[GAME]", "[dev]", "MinecraftClient"
+            "JNI_OnLoad", "ANativeActivity", "[GAME]", "[dev]", "MinecraftClient",
+            "[asset]", "[fw]", "[base]", "[runtime]", "[PFC]"
         )
         val filtered = lines.filter { line ->
             essentialKeywords.any { keyword -> line.contains(keyword) }
