@@ -25,6 +25,10 @@ import java.util.Locale
 import java.util.zip.ZipFile
 
 class MainActivity : AppCompatActivity() {
+    companion object {
+        @Volatile var gameProcess: Process? = null
+    }
+
     private fun filterOutput(raw: String): String {
         val lines = raw.lines()
         val essentialKeywords = listOf(
@@ -323,6 +327,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun runSandboxApp(app: SandboxApp) {
         if (isRunning) return
+        for (n in listOf("glipc.bin", "ipc64_status.txt", "ipc64_events.txt")) File(filesDir, n).delete()
+        startActivity(android.content.Intent(this, DisplayTestActivity::class.java))
                 isRunning = true
                 runOnUiThread { showLoading() }
         Thread {
@@ -504,6 +510,7 @@ class MainActivity : AppCompatActivity() {
                 reader.join(2000)
                 try {
                     exitCode = process.exitValue()
+                gameProcess = null
                 } catch (e: Exception) {
                     exitCode = 124 // Standard timeout code
                     out.append("\n[dev] process still alive, but watchdog forced cleanup\n")

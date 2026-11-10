@@ -21,9 +21,17 @@ static int g_egl_initialized = 0;
 static ANativeWindow* g_win = NULL;
 static int width = 0, height = 0;
 static GLuint prog, vao, vbo, tex;
+static GLuint g_test_prog=0, g_test_vbo=0, g_test_vao=0;
 /* B-2: mmap IPC reader */
+
+#include <stdarg.h>
+static void trace_file(const char *fmt, ...) {
+    FILE *f = fopen("/sdcard/Sandbox 32/native_trace.txt", "a");
+    if (f) { va_list ap; va_start(ap, fmt); vfprintf(f, fmt, ap); va_end(ap); fprintf(f, "\n"); fclose(f); }
+}
+
 #define IPC_LOG_TAG "IPC64"
-#define IPC_SIZE (1024*1024*64)
+#define IPC_SIZE (1024*1024*256)
 #define RING_MAGIC 0x52494E47U
 #define IPC_LOG(...) __android_log_print(ANDROID_LOG_INFO, IPC_LOG_TAG, __VA_ARGS__)
 
@@ -32,6 +40,7 @@ static unsigned int g_ipc_last_seq = 0;
 
 #define MAX_OBJS 512
 static unsigned int g_shader_map[MAX_OBJS];
+static unsigned int g_shader_type[MAX_OBJS] = {0};
 static unsigned int g_program_map[MAX_OBJS];
 static unsigned int g_buffer_map[MAX_OBJS];
 static unsigned int g_texture_map[MAX_OBJS];
@@ -103,8 +112,18 @@ static void ipc_reader_poll(void) {
     if (!g_ipc) return;
     unsigned int head = __atomic_load_n(&g_ipc[1], __ATOMIC_ACQUIRE);
     unsigned int tail = g_ipc[2];
+    /* BOUNDS CHECK: only reset reader if it's past head or beyond buffer */
+    if (tail > IPC_SIZE) {
+        __atomic_store_n(&g_ipc[2], 16, __ATOMIC_RELEASE);
+        return;
+    }
+    if (tail > head) {
+        __atomic_store_n(&g_ipc[2], 16, __ATOMIC_RELEASE);
+        return;
+    }
     int processed = 0;
-    while (tail + 16 <= head && tail + 16 <= IPC_SIZE) {
+    int _hard = 0;
+    while (_hard++ < 100 && tail + 16 <= head && tail + 16 <= IPC_SIZE) {
         unsigned char *p = (unsigned char*)g_ipc + tail;
         unsigned int type = ((unsigned int*)p)[0];
         unsigned int id   = ((unsigned int*)p)[1];
@@ -114,19 +133,28 @@ static void ipc_reader_poll(void) {
         switch (type) {
             case 1: {
                 unsigned int gl_type = *(unsigned int*)(p+16);
-                unsigned int real = glCreateShader(gl_type);
-                if (id < MAX_OBJS) g_shader_map[id] = real;
-                evlog("[CREATE_SHADER] id=%u type=%u real=%u\n", id, gl_type, real);
+                if (id < MAX_OBJS) {
+                    unsigned int real = glCreateShader(gl_type);
+                    g_shader_map[id] = real;
+                    g_shader_type[id] = gl_type;
+                }
                 break;
             }
             case 2: {
                 unsigned int real = (id < MAX_OBJS) ? g_shader_map[id] : 0;
+                unsigned int sh_type = (id < MAX_OBJS) ? g_shader_type[id] : 0;
                 if (real) {
                     const char *srcp = (const char*)(p+16);
                     int srclen = (int)len;
+                    if (sh_type == 0x8B30) {
+                        const char *forcedFs = "#version 100\nprecision mediump float;\nvoid main(){ gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); }";
+                        srcp = forcedFs;
+                        srclen = strlen(forcedFs);
+                        static int fs_cnt = 0;
+                        if (fs_cnt++ < 5) trace_file("FS_OVERRIDE_RED: id=%u", id);
+                    }
                     glShaderSource(real, 1, &srcp, &srclen);
                 }
-                evlog("[SOURCE] id=%u real=%u len=%u\n", id, real, len);
                 break;
             }
             case 3: {
@@ -244,10 +272,12 @@ static void ipc_reader_poll(void) {
                 break;
             }
             case 13: {
-                unsigned int target = ((unsigned int*)(p+16))[0];
-                unsigned int pname  = ((unsigned int*)(p+16))[1];
-                int param = (int)((unsigned int*)(p+16))[2];
-                glTexParameteri(target, pname, param);
+                if (len >= 12) {
+                    unsigned int target = ((unsigned int*)(p+16))[0];
+                    unsigned int pname  = ((unsigned int*)(p+16))[1];
+                    int param = (int)((unsigned int*)(p+16))[2];
+                    glTexParameteri(target, pname, param);
+                }
                 break;
             }
             case 14: {
@@ -300,49 +330,33 @@ static void ipc_reader_poll(void) {
                 unsigned int count  = ((unsigned int*)(p+16))[1];
                 unsigned int dtype  = ((unsigned int*)(p+16))[2];
                 unsigned int offset = ((unsigned int*)(p+16))[3];
-                if (g_cur_program) {
-                    /* C-2b-2: MCPE 0.14.3 vertex layout — stride 24, pos/uv/color */
-                    /* C-2b-3: Force WORLDVIEWPROJ=identity for pre-transformed vertices */
-                    GLint wvpLoc = glGetUniformLocation(g_cur_program, "WORLDVIEWPROJ");
-                    static int wvp_log = 0;
-                    if (wvp_log < 3) { wvp_log++; evlog("[MVP] prog=%u loc=%d\n", g_cur_program, wvpLoc); }
-                    if (wvpLoc >= 0) {
-                        float ortho[16] = {
-                            2.0f/width, 0, 0, 0,
-                            0, -2.0f/height, 0, 0,
-                            0, 0, 1.0f, 0,
-                            -1.0f, 1.0f, 0, 1
-                        };
-                        glUniformMatrix4fv(wvpLoc, 1, GL_FALSE, ortho);
-                    }
+
+                if (g_cur_program && g_arr) {
+                    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                    glViewport(0, 0, width, height);
+                    glDisable(GL_SCISSOR_TEST);
+                    glDisable(GL_DEPTH_TEST);
+                    glDisable(GL_CULL_FACE);
+                    glDisable(GL_BLEND);
+
+                    float idm[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+                    GLint ml = glGetUniformLocation(g_cur_program, "WORLDVIEWPROJ");
+                    if (ml >= 0) glUniformMatrix4fv(ml, 1, GL_FALSE, idm);
+
                     if (g_default_vao) glBindVertexArray(g_default_vao);
-                    if (g_arr) {
-                        glBindBuffer(0x8892, g_arr);
-                        GLint pos = glGetAttribLocation(g_cur_program, "POSITION");
-                        GLint col = glGetAttribLocation(g_cur_program, "COLOR");
-                        GLint uv0 = glGetAttribLocation(g_cur_program, "TEXCOORD_0");
-                        GLint uv1 = glGetAttribLocation(g_cur_program, "TEXCOORD_1");
-                        GLint nrm = glGetAttribLocation(g_cur_program, "NORMAL");
-                        
-                        if (pos >= 0) { glEnableVertexAttribArray(pos); glVertexAttribPointer(pos, 4, GL_FLOAT, GL_FALSE, 28, (void*)0); }
-                        if (col >= 0) { glEnableVertexAttribArray(col); glVertexAttribPointer(col, 4, GL_UNSIGNED_BYTE, GL_TRUE, 28, (void*)16); }
-                        if (uv0 >= 0) { glEnableVertexAttribArray(uv0); glVertexAttribPointer(uv0, 2, GL_FLOAT, GL_FALSE, 28, (void*)20); }
-                        if (uv1 >= 0) { glEnableVertexAttribArray(uv1); glVertexAttribPointer(uv1, 2, GL_FLOAT, GL_FALSE, 28, (void*)20); }
-                        if (nrm >= 0) { glEnableVertexAttribArray(nrm); glVertexAttribPointer(nrm, 4, GL_UNSIGNED_BYTE, GL_TRUE, 28, (void*)16); }
-                        
-                        static int attr_log = 0;
-                        if (attr_log < 5) { attr_log++; evlog("[ATTR] prog=%u pos=%d col=%d uv0=%d uv1=%d nrm=%d\n", g_cur_program, pos, col, uv0, uv1, nrm); }
-                    }
-                    while (glGetError() != GL_NO_ERROR) {}  /* drain pre-existing errors */
+                    glBindBuffer(GL_ARRAY_BUFFER, g_arr);
+
+                    GLint pos = glGetAttribLocation(g_cur_program, "POSITION");
+                    GLint col = glGetAttribLocation(g_cur_program, "COLOR");
+                    GLint uv  = glGetAttribLocation(g_cur_program, "TEXCOORD_0");
+
+                    if (pos >= 0) { glEnableVertexAttribArray(pos); glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 24, (void*)0); }
+                    if (col >= 0) { glEnableVertexAttribArray(col); glVertexAttribPointer(col, 4, GL_UNSIGNED_BYTE, GL_TRUE, 24, (void*)12); }
+                    if (uv >= 0) { glEnableVertexAttribArray(uv); glVertexAttribPointer(uv, 2, GL_FLOAT, GL_FALSE, 24, (void*)16); }
+
+                    if (g_elm) glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_elm);
+                    
                     glDrawElements(mode, count, dtype, (void*)(size_t)offset);
-                    GLenum err = glGetError();
-                    static int err_log = 0;
-                    if (err != GL_NO_ERROR && err_log < 10) {
-                        err_log++;
-                        evlog("[DRAW ERR #%d] err=0x%x mode=%x count=%u prog=%u\n", err_log, err, mode, count, g_cur_program);
-                    }
-                    static int draw_log = 0;
-                    if (draw_log < 20) { draw_log++; evlog("[DRAW] mode=%x count=%u off=%u\n", mode, count, offset); }
                 }
                 break;
             }
@@ -373,7 +387,17 @@ static void ipc_reader_poll(void) {
                 }
                 break;
             }
-            default:
+            case 23: {
+                int loc = (int)((unsigned int*)(p+16))[0];
+                int cc = (int)((unsigned int*)(p+16))[1];
+                unsigned char tr = (unsigned char)((unsigned int*)(p+16))[2];
+                if (loc >= 0 && cc > 0 && cc <= 4) {
+                    glUniformMatrix4fv(loc, cc, tr, (const float*)(p+28));
+                }
+                static int m4cnt=0; if(m4cnt++<3) trace_file("MAT4: loc=%d cc=%d tr=%d", loc, cc, tr);
+                break;
+            }
+                        default:
                 evlog("[UNKNOWN] type=%u id=%u len=%u\n", type, id, len);
                 break;
         }
@@ -523,15 +547,7 @@ void update_texture_from_file() {
 extern "C" JNIEXPORT void JNICALL
 Java_com_sandbox_app_DisplayTestActivity_nativeRender(JNIEnv* env, jobject thiz) {
     if (surface == EGL_NO_SURFACE) return;
-    ipc_reader_poll();
-    static int beacon_frames = 0;
-    if (g_ipc && g_ipc[2] == 16 && beacon_frames < 180) {
-        beacon_frames++;
-        glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        eglSwapBuffers(display, surface);
-        return;
-    }
+    if (!g_ipc) ipc_reader_init();
     ipc_reader_poll();
     eglSwapBuffers(display, surface);
 }

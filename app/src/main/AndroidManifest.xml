@@ -21,6 +21,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".DisplayTestActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
+            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
         <activity android:name=".SettingsActivity" />
         <activity android:name=".DevSettingsActivity" />
         <service
@@ -29,6 +35,6 @@
             android:exported="false">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Running 32-bit sandbox runtime" />
         </service>
-            <activity android:name=".DisplayTestActivity" android:launchMode="singleTop" android:exported="false" />
+            
     </application>
 </manifest>
