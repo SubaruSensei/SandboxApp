@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import java.io.File
 
 class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
@@ -18,7 +19,7 @@ class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
         private const val TAG = "DisplayTestActivity"
         private const val FB_W = 720
         private const val FB_H = 1540
-        init { System.loadLibrary("engine64") }
+        private const val OVERLAY_SO = "/sdcard/Sandbox 32/overlay/libengine64.so"
     }
 
     private external fun nativeInit(surface: Surface)
@@ -29,8 +30,30 @@ class DisplayTestActivity : AppCompatActivity(), SurfaceHolder.Callback {
     @Volatile private var renderThread: Thread? = null
     @Volatile private var running = false
 
+    private fun loadEngine() {
+        try {
+            val overlay = File(OVERLAY_SO)
+            if (overlay.exists() && overlay.canRead()) {
+                val localCopy = File(filesDir, "libengine64.so")
+                overlay.inputStream().use { i -> localCopy.outputStream().use { o -> i.copyTo(o) } }
+                System.load(localCopy.absolutePath)
+                Log.i(TAG, "Loaded from OVERLAY")
+                return
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "Overlay load failed: ${e.message}")
+        }
+        try {
+            System.loadLibrary("engine64")
+            Log.i(TAG, "Loaded from APK")
+        } catch (e: Throwable) {
+            Log.e(TAG, "APK load failed", e)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        loadEngine()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (Build.VERSION.SDK_INT >= 28) {
             window.attributes.layoutInDisplayCutoutMode =
